@@ -1,12 +1,16 @@
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
   font-family: system-ui, sans-serif;
+  background: #121212;
+  color: #e6e6e6;
 }
 
 body {
   margin: 0 auto;
   max-width: 900px;
   padding: 1rem;
+  background: #121212;
+  color: #e6e6e6;
 }
 
 #waveform {

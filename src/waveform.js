@@ -7,7 +7,7 @@ export function createWaveSurfer(container) {
   const wavesurfer = WaveSurfer.create({
     container,
     waveColor: '#4f6df5',
-    progressColor: '#2c3e91',
+    progressColor: '#8ea0ff',
     cursorColor: 'currentColor',
     height: 120,
     minPxPerSec: 50,
