@@ -131,6 +131,12 @@ wavesurfer.on('interaction', () => {
 })
 
 window.addEventListener('keydown', (e) => {
+  if (e.code === 'Space') {
+    e.preventDefault()
+    wavesurfer.playPause()
+    return
+  }
+
   if (e.key === 'Delete' || e.key === 'Backspace') {
     if (!activeRegionId) return
     const region = regions.getRegions().find((r) => r.id === activeRegionId)
