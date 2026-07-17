@@ -1,11 +1,14 @@
 import './style.css'
 import { createWaveSurfer } from './waveform.js'
+import { createSpectrumAnalyser } from './spectrum.js'
 
 const uploadInput = document.getElementById('upload')
 const uploadError = document.getElementById('upload-error')
 const zoomInput = document.getElementById('zoom')
 const waveformContainer = document.getElementById('waveform')
 const playPauseBtn = document.getElementById('play-pause')
+const spectrumCanvas = document.getElementById('spectrum')
+let spectrumAnalyser = null
 
 const { wavesurfer, regions } = createWaveSurfer(waveformContainer)
 
@@ -18,6 +21,9 @@ wavesurfer.on('error', (error) => {
 wavesurfer.on('ready', () => {
   uploadError.hidden = true
   playPauseBtn.disabled = false
+  if (!spectrumAnalyser) {
+    spectrumAnalyser = createSpectrumAnalyser(wavesurfer, spectrumCanvas)
+  }
 })
 
 uploadInput.addEventListener('change', () => {
@@ -40,10 +46,12 @@ playPauseBtn.addEventListener('click', () => {
 
 wavesurfer.on('play', () => {
   playPauseBtn.textContent = 'Pause'
+  spectrumAnalyser?.start()
 })
 
 wavesurfer.on('pause', () => {
   playPauseBtn.textContent = 'Play'
+  spectrumAnalyser?.stop()
 })
 
 speedInput.addEventListener('input', () => {
