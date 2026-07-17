@@ -1,0 +1,37 @@
+:root {
+  color-scheme: light dark;
+  font-family: system-ui, sans-serif;
+}
+
+body {
+  margin: 0 auto;
+  max-width: 900px;
+  padding: 1rem;
+}
+
+#waveform {
+  border: 1px solid currentColor;
+  margin-block: 0.5rem;
+}
+
+.error {
+  color: #c0392b;
+}
+
+#selections-list {
+  list-style: none;
+  padding: 0;
+}
+
+#selections-list li {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid transparent;
+}
+
+#selections-list li.active {
+  border-color: currentColor;
+  font-weight: bold;
+}
