@@ -60,7 +60,7 @@ speedInput.addEventListener('input', () => {
   speedLabel.textContent = `${rate.toFixed(2)}x`
 })
 
-import { sortRegionsByStart } from './selections.js'
+import { sortRegionsByStart, getAdjacentRegionId } from './selections.js'
 import { renderSelectionsList } from './selectionsList.js'
 
 const selectionsListEl = document.getElementById('selections-list')
@@ -122,5 +122,14 @@ window.addEventListener('keydown', (e) => {
     if (!activeRegionId) return
     const region = regions.getRegions().find((r) => r.id === activeRegionId)
     if (region) region.remove()
+    return
+  }
+
+  if (e.key === 'Tab') {
+    e.preventDefault()
+    const sorted = sortRegionsByStart(regions.getRegions())
+    const direction = e.shiftKey ? 'prev' : 'next'
+    const nextId = getAdjacentRegionId(sorted, activeRegionId, direction)
+    if (nextId) activateRegion(nextId)
   }
 })
