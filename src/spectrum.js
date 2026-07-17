@@ -36,7 +36,7 @@ export function createSpectrumAnalyser(wavesurfer, canvas) {
       ctx.fillRect(x, canvas.height - barHeight, 2, barHeight)
     }
 
-    ctx.fillStyle = '#333'
+    ctx.fillStyle = '#e0e0e0'
     ctx.font = '10px sans-serif'
     for (let midi = 21; midi <= 108; midi += 3) {
       const freq = 440 * Math.pow(2, (midi - 69) / 12)

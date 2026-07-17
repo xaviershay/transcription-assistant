@@ -1,6 +1,8 @@
 import './style.css'
 import { createWaveSurfer } from './waveform.js'
 import { createSpectrumAnalyser } from './spectrum.js'
+import { sortRegionsByStart, getAdjacentRegionId } from './selections.js'
+import { renderSelectionsList } from './selectionsList.js'
 
 const uploadInput = document.getElementById('upload')
 const uploadError = document.getElementById('upload-error')
@@ -59,9 +61,6 @@ speedInput.addEventListener('input', () => {
   wavesurfer.setPlaybackRate(rate, true)
   speedLabel.textContent = `${rate.toFixed(2)}x`
 })
-
-import { sortRegionsByStart, getAdjacentRegionId } from './selections.js'
-import { renderSelectionsList } from './selectionsList.js'
 
 const selectionsListEl = document.getElementById('selections-list')
 const activeLabel = document.getElementById('active-label')
