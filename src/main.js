@@ -30,3 +30,24 @@ uploadInput.addEventListener('change', () => {
 zoomInput.addEventListener('input', () => {
   wavesurfer.zoom(Number(zoomInput.value))
 })
+
+const speedInput = document.getElementById('speed')
+const speedLabel = document.getElementById('speed-label')
+
+playPauseBtn.addEventListener('click', () => {
+  wavesurfer.playPause()
+})
+
+wavesurfer.on('play', () => {
+  playPauseBtn.textContent = 'Pause'
+})
+
+wavesurfer.on('pause', () => {
+  playPauseBtn.textContent = 'Play'
+})
+
+speedInput.addEventListener('input', () => {
+  const rate = Number(speedInput.value)
+  wavesurfer.setPlaybackRate(rate, true)
+  speedLabel.textContent = `${rate.toFixed(2)}x`
+})
