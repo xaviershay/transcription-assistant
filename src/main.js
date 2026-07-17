@@ -6,7 +6,6 @@ import { renderSelectionsList } from './selectionsList.js'
 
 const uploadInput = document.getElementById('upload')
 const uploadError = document.getElementById('upload-error')
-const zoomInput = document.getElementById('zoom')
 const waveformContainer = document.getElementById('waveform')
 const playPauseBtn = document.getElementById('play-pause')
 const spectrumCanvas = document.getElementById('spectrum')
@@ -35,9 +34,24 @@ uploadInput.addEventListener('change', () => {
   wavesurfer.loadBlob(file)
 })
 
-zoomInput.addEventListener('input', () => {
-  wavesurfer.zoom(Number(zoomInput.value))
-})
+const ZOOM_FACTOR = 1.2
+const MIN_PX_PER_SEC = 10
+const MAX_PX_PER_SEC = 1000
+let currentPxPerSec = 50
+
+waveformContainer.addEventListener(
+  'wheel',
+  (e) => {
+    if (e.shiftKey) return // let native horizontal scroll handle panning
+    e.preventDefault()
+    currentPxPerSec =
+      e.deltaY < 0
+        ? Math.min(MAX_PX_PER_SEC, currentPxPerSec * ZOOM_FACTOR)
+        : Math.max(MIN_PX_PER_SEC, currentPxPerSec / ZOOM_FACTOR)
+    wavesurfer.zoom(currentPxPerSec)
+  },
+  { passive: false },
+)
 
 const speedInput = document.getElementById('speed')
 const speedLabel = document.getElementById('speed-label')
