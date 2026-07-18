@@ -52,6 +52,8 @@ h2 {
   border-radius: 6px;
   margin-block: 0.5rem;
   display: block;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .error {

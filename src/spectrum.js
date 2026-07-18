@@ -10,6 +10,15 @@ const LABEL_COLOR = '#f0f0f0'
 const BAR_COLOR = '#4f6df5'
 
 export function createSpectrumAnalyser(wavesurfer, canvas) {
+  function syncCanvasWidth() {
+    const width = Math.round(canvas.getBoundingClientRect().width)
+    if (width > 0 && canvas.width !== width) {
+      canvas.width = width
+    }
+  }
+  syncCanvasWidth()
+  window.addEventListener('resize', syncCanvasWidth)
+
   const audioCtx = new AudioContext()
   const source = audioCtx.createMediaElementSource(wavesurfer.getMediaElement())
   const analyser = audioCtx.createAnalyser()
