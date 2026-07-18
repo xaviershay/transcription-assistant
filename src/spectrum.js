@@ -126,6 +126,10 @@ export function createSpectrumAnalyser(wavesurfer, canvas) {
         const cursorX = ((e.clientX - rect.left) / rect.width) * canvas.width
         zoomAt(cursorX, e.deltaY)
       }
+      console.log(
+        `[spectrum wheel] deltaY=${e.deltaY} deltaMode=${e.deltaMode} shiftKey=${e.shiftKey} ` +
+          `zoomAccumulator=${zoomAccumulator.toFixed(2)} view=[${viewMinFreq.toFixed(2)}, ${viewMaxFreq.toFixed(2)}]`,
+      )
       if (!animationFrame) render()
     },
     { passive: false },
@@ -177,6 +181,13 @@ export function createSpectrumAnalyser(wavesurfer, canvas) {
   function stop() {
     if (animationFrame) cancelAnimationFrame(animationFrame)
     animationFrame = null
+    // Without this, the AudioContext keeps running (and the analyser keeps
+    // smoothing its output toward silence) even while playback is paused,
+    // since nothing else ever suspends it - each repaint after a pause would
+    // reveal a slightly more decayed frame than the last, making bars look
+    // like they shrink over time whenever paused, regardless of the cause
+    // of the repaint (e.g. zooming).
+    audioCtx.suspend()
   }
 
   render()
