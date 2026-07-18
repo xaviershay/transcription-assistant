@@ -102,7 +102,13 @@ function rebuildTimeline() {
   timelinePlugin = TimelinePlugin.create({
     height: 20,
     timeInterval: secondsPerBeat / beatSubdivisions,
-    primaryLabelInterval: secondsPerBeat,
+    // primaryLabelInterval is time-based and rounds the interval to 2 decimal
+    // places internally, which drifts out of sync for BPMs whose secondsPerBeat
+    // doesn't round cleanly (e.g. 133 BPM = 0.4511...s/beat) - neutralized here
+    // (a value no real file duration will reach) in favor of the index-based
+    // primaryLabelSpacing below, which counts ticks directly and can't drift.
+    primaryLabelInterval: 1e6,
+    primaryLabelSpacing: beatSubdivisions,
     timeOffset: beatOffset,
     formatTimeCallback: (t) => String(Math.round(t / secondsPerBeat) + 1),
     style: { color: '#e6e6e6', fontSize: '10px' },
