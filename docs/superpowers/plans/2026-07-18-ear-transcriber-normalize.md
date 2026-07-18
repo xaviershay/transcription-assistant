@@ -103,8 +103,9 @@ describe('applyGain', () => {
 
   it('does not mutate the input array', () => {
     const channel = new Float32Array([0.1, 0.2])
+    const before = Array.from(channel)
     applyGain([channel], 2)
-    expect(Array.from(channel)).toEqual([0.1, 0.2])
+    expect(Array.from(channel)).toEqual(before)
   })
 })
 
