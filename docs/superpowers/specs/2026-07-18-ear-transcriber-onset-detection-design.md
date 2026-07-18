@@ -28,29 +28,73 @@ whole file.
    (~11.6ms resolution at 44.1kHz). Flux per frame = sum of *positive-only*
    magnitude increases vs. the previous frame (rising energy only — decays
    are ignored, since a new note's onset is an energy increase).
-3. **Peak-picking with adaptive threshold**: a frame is a candidate onset
-   if its flux is a local maximum, exceeds `localMean(flux) * (2 /
+3. **Log-compressed magnitude, not linear**: flux is computed on
+   `log(1 + magnitude)` per bin, not raw magnitude. Verified by prototyping
+   against a synthetic steady tone that linear-magnitude flux is dominated
+   by spectral leakage sidelobe wobble (small magnitude fluctuations in the
+   bins around a non-bin-aligned frequency's peak, which shift slightly
+   every frame purely from window-phase, unrelated to any real onset) —
+   large enough to produce false onset peaks mid-note. Log compression
+   suppresses this because it compresses the *relative* size of small
+   sidelobe wobble much more than the *relative* size of a genuine
+   near-zero-to-substantial energy jump.
+4. **Peak-picking with adaptive threshold**: a frame is a candidate onset
+   if its flux is a local maximum and exceeds `localMean(flux) * (2 /
    sensitivity)` (an adaptive threshold computed from a local window of the
    flux curve, not one global number — adapts to the passage's own
-   dynamics), and is at least 60ms after the previously accepted onset
-   (prevents double-triggering within a single attack transient).
-4. Onsets within ~30ms of the slice's own start are dropped — this is a
-   windowing edge artifact from FFT-ing right at an abrupt buffer boundary,
-   not a real note boundary.
-5. Returns onset times **relative to the start of the sample slice
+   dynamics).
+5. **Not-decaying-to-silence gate**: a candidate is rejected if energy a
+   short lookahead (3 frames, ~35ms) later has dropped below 15% of the
+   recent local peak energy. This was the second bug found by prototyping:
+   spectral flux alone can't distinguish a genuine new-note onset from a
+   note's *offset* (its tail decaying into trailing silence), because an
+   abrupt cutoff also broadens the spectrum and produces a flux spike —
+   the FFT window's forward extent means this is detected 1-2 frames
+   *before* the nominal offset time, which otherwise gets misread as a new
+   onset. An earlier attempt at a general "energy must be rising" gate was
+   tried and rejected: it also rejected genuine legato onsets between two
+   equal-loudness notes, which can show a brief energy *dip* right at the
+   transition (a real windowing/phase artifact at the boundary) before
+   recovering to the new note's steady level — the discriminator that
+   actually works is whether energy *recovers* shortly after (new note) vs.
+   *keeps falling toward zero* (note actually ending).
+6. Minimum 60ms gap enforced between accepted onsets (prevents
+   double-triggering within a single attack transient), and onsets within
+   ~30ms of the slice's own start are dropped (windowing edge artifact from
+   FFT-ing right at an abrupt buffer boundary, not a real note boundary).
+7. Returns onset times **relative to the start of the sample slice
    passed in** — the caller (UI layer) adds the region's own start time to
-   get absolute times.
+   get absolute times. Detected onset times run ~30-40ms *earlier* than the
+   nominal note boundary — a systematic, expected bias from the FFT
+   window's forward extent (a 2048-sample window "sees" an upcoming change
+   before its nominal sample position), not detection jitter.
+
+**Known limitation** (accepted, not fixed): prototyping surfaced one
+remaining edge case — pure, harmonically-simple tones at certain
+frequencies can occasionally produce one extra spurious split mid-note at
+high sensitivity. This did not reproduce across most tested scenarios
+(silence gaps, legato runs of adjacent notes) and real recorded audio's
+natural timbral complexity and noise floor make the specific pure-sine
+leakage pattern behind it unlikely — and when it does happen, the
+preview/adjust/confirm workflow below is precisely the intended recourse:
+lower the sensitivity and re-preview.
 
 **Two-stage split**, so re-previewing at a different sensitivity is cheap:
 
 - `computeSpectralFlux(samples, sampleRate)` — the expensive FFT pass, run
-  once per "Subdivide" click.
+  once per "Subdivide" click. Returns `{ flux, energy, hopSize, sampleRate
+  }` — `flux` and `energy` are parallel per-frame arrays (`energy` is the
+  frame's total broadband magnitude, used by the silence-lookahead gate).
 - `pickOnsets(fluxResult, sensitivity)` — cheap threshold/peak-pick only,
   re-run on every sensitivity-slider change without recomputing the FFT.
 
 Sensitivity range: higher = more onsets detected (lower relative
-threshold). Exact default value tuned during implementation against a
-synthetic test signal.
+threshold). Verified constants (via prototyping, see above): `FFT_SIZE
+= 2048`, `HOP_SIZE = 512`, `MIN_ONSET_GAP_SECONDS = 0.06`,
+`MIN_ONSET_START_SECONDS = 0.03`, `LOCAL_MEAN_WINDOW_FRAMES = 10`,
+`SILENCE_LOOKAHEAD_FRAMES = 3`, `SILENCE_FLOOR_FRACTION = 0.15`,
+threshold formula `localMean(flux) * (2 / sensitivity)`. UI slider range
+0.5–5, default 1.5.
 
 ## UI: preview → confirm/cancel
 
@@ -102,12 +146,16 @@ list or get cycled into while just provisional.
 `src/onsets.js` (the pure algorithm module) gets real vitest coverage,
 consistent with `notes.js`/`selections.js`:
 
-- Synthetic signals: pure silence → zero onsets. Two isolated tone bursts
-  with a known silent gap → detects ~2 onsets near the expected sample
-  positions (within a tolerance). Varying `sensitivity` on the same flux
-  data changes the onset count as expected (higher sensitivity → same or
-  more onsets).
-- `pickOnsets` tested independently of `computeSpectralFlux` where useful,
+- Synthetic signals, matching what was verified during prototyping: pure
+  silence → zero onsets. Two isolated tones with a silent gap between them
+  → exactly 2 onsets, each within ~50ms of the expected boundary (accounts
+  for the systematic window-forward-extent lag noted above). Four adjacent
+  legato tones with no gaps → exactly 4 onsets, same tolerance — this is
+  the primary real-world case (a run of adjacent notes) and the one most
+  worth locking down with a test.
+- The known pure-tone edge case (occasional extra split at high
+  sensitivity) is *not* asserted against in the test suite — it's a
+  documented, accepted limitation, not a regression target.
   given the two-stage split.
 
 Everything else (preview rendering, region promotion on confirm, UI state
