@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Builds the app and publishes dist/ to the gh-pages branch on origin,
+# so it's served at https://xaviershay.github.io/transcription-assistant/
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+if [ -n "$(git status --porcelain)" ]; then
+  echo "Warning: you have uncommitted changes. The build will include whatever" >&2
+  echo "is currently on disk, not just what's committed." >&2
+fi
+
+WORKTREE_DIR="$(mktemp -d)"
+cleanup() {
+  git worktree remove --force "$WORKTREE_DIR" >/dev/null 2>&1 || true
+  rm -rf "$WORKTREE_DIR"
+}
+trap cleanup EXIT
+
+echo "Building..."
+npm run build
+
+echo "Preparing gh-pages worktree..."
+if git show-ref --verify --quiet refs/remotes/origin/gh-pages || git show-ref --verify --quiet refs/heads/gh-pages; then
+  git worktree add "$WORKTREE_DIR" gh-pages
+else
+  git worktree add --orphan -b gh-pages "$WORKTREE_DIR"
+fi
+
+echo "Copying build output..."
+find "$WORKTREE_DIR" -mindepth 1 -maxdepth 1 ! -name '.git' -exec rm -rf {} +
+cp -r dist/. "$WORKTREE_DIR/"
+touch "$WORKTREE_DIR/.nojekyll"
+
+cd "$WORKTREE_DIR"
+git add -A
+if git diff --cached --quiet; then
+  echo "Nothing changed since last publish."
+else
+  git commit -q -m "Publish $(date -u +%Y-%m-%dT%H:%M:%SZ) ($(git -C "$REPO_ROOT" rev-parse --short HEAD))"
+  git push origin gh-pages
+  echo "Published to https://xaviershay.github.io/transcription-assistant/"
+fi
