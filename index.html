@@ -33,7 +33,11 @@
       </section>
 
       <section id="selections-section" class="panel">
-        <h2>Selections</h2>
+        <div class="selections-header">
+          <h2>Selections</h2>
+          <label for="onset-sensitivity">Sensitivity</label>
+          <input type="range" id="onset-sensitivity" min="0.2" max="2.5" step="0.1" value="1.0" disabled />
+        </div>
         <ul id="selections-list"></ul>
       </section>
     </main>

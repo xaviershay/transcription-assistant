@@ -139,6 +139,6 @@ export function pickOnsets(fluxResult, sensitivity) {
   return onsets
 }
 
-export function detectOnsets(samples, sampleRate, sensitivity = 1.5) {
+export function detectOnsets(samples, sampleRate, sensitivity = 1.0) {
   return pickOnsets(computeSpectralFlux(samples, sampleRate), sensitivity)
 }

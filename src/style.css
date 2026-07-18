@@ -167,3 +167,19 @@ input[type='range']::-moz-range-track {
   padding: 0.2rem 0.6rem;
   font-size: 0.8rem;
 }
+
+.selections-header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-bottom: 0.5rem;
+}
+
+.selections-header h2 {
+  margin: 0;
+}
+
+.row-buttons {
+  display: flex;
+  gap: 0.4rem;
+}

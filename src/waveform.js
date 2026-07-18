@@ -16,6 +16,7 @@ export function createWaveSurfer(container) {
     cursorColor: 'currentColor',
     height: 120,
     minPxPerSec: 50,
+    sampleRate: 44100,
     plugins: [regions, timeline],
   })
 

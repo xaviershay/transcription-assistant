@@ -3,6 +3,7 @@ import { createWaveSurfer } from './waveform.js'
 import { createSpectrumAnalyser } from './spectrum.js'
 import { sortRegionsByStart, getAdjacentRegionId } from './selections.js'
 import { renderSelectionsList } from './selectionsList.js'
+import { mixToMono, computeSpectralFlux, pickOnsets } from './onsets.js'
 
 const uploadInput = document.getElementById('upload')
 const uploadError = document.getElementById('upload-error')
@@ -80,17 +81,133 @@ speedInput.addEventListener('input', () => {
 
 const selectionsListEl = document.getElementById('selections-list')
 const activeLabel = document.getElementById('active-label')
+const sensitivitySlider = document.getElementById('onset-sensitivity')
 
 let activeRegionId = null
 
+let previewingRegionId = null
+let previewFluxResult = null
+let previewSliceStart = null
+let previewRegionIds = []
+let sensitivityDebounceTimer = null
+
+function isPreviewRegion(region) {
+  return region.id.startsWith('preview-')
+}
+
+function clearPreviewRegions() {
+  for (const id of previewRegionIds) {
+    const region = regions.getRegions().find((r) => r.id === id)
+    if (region) region.remove()
+  }
+  previewRegionIds = []
+}
+
+function renderPreview(sensitivity) {
+  clearPreviewRegions()
+  const relativeOnsets = pickOnsets(previewFluxResult, sensitivity)
+  const parent = regions.getRegions().find((r) => r.id === previewingRegionId)
+  if (!parent) return
+
+  const boundaries = [parent.start, ...relativeOnsets.map((t) => previewSliceStart + t), parent.end]
+  for (let i = 0; i < boundaries.length - 1; i++) {
+    const previewRegion = regions.addRegion({
+      id: `preview-${i}`,
+      start: boundaries[i],
+      end: boundaries[i + 1],
+      color: 'rgba(245, 166, 79, 0.45)',
+      drag: false,
+      resize: false,
+    })
+    if (previewRegion.element) {
+      previewRegion.element.style.borderLeft = '2px solid #f5a64f'
+      previewRegion.element.style.borderRight = '2px solid #f5a64f'
+      previewRegion.element.style.boxSizing = 'border-box'
+    }
+    previewRegionIds.push(previewRegion.id)
+  }
+}
+
+function startSubdivide(regionId) {
+  if (previewingRegionId) return
+  const region = regions.getRegions().find((r) => r.id === regionId)
+  if (!region) return
+
+  const audioBuffer = wavesurfer.getDecodedData()
+  if (!audioBuffer) return
+
+  const sampleRate = audioBuffer.sampleRate
+  const startSample = Math.floor(region.start * sampleRate)
+  const endSample = Math.ceil(region.end * sampleRate)
+  const channelData = []
+  for (let ch = 0; ch < audioBuffer.numberOfChannels; ch++) {
+    channelData.push(audioBuffer.getChannelData(ch).slice(startSample, endSample))
+  }
+  const mono = mixToMono(channelData)
+
+  previewingRegionId = regionId
+  previewFluxResult = computeSpectralFlux(mono, sampleRate)
+  previewSliceStart = region.start
+  region.setOptions({ color: 'transparent' })
+
+  sensitivitySlider.disabled = false
+  renderPreview(Number(sensitivitySlider.value))
+  refreshSelectionsList()
+}
+
+function endPreview() {
+  previewingRegionId = null
+  previewFluxResult = null
+  previewSliceStart = null
+  sensitivitySlider.disabled = true
+  refreshSelectionsList()
+}
+
+function confirmSubdivide() {
+  const parent = regions.getRegions().find((r) => r.id === previewingRegionId)
+  const boundaries = previewRegionIds
+    .map((id) => regions.getRegions().find((r) => r.id === id))
+    .filter(Boolean)
+    .map((r) => ({ start: r.start, end: r.end }))
+
+  clearPreviewRegions()
+  if (parent) parent.remove()
+
+  for (const { start, end } of boundaries) {
+    regions.addRegion({ start, end, color: 'rgba(79, 109, 245, 0.2)' })
+  }
+
+  endPreview()
+}
+
+function cancelSubdivide() {
+  const parent = regions.getRegions().find((r) => r.id === previewingRegionId)
+  if (parent) parent.setOptions({ color: 'rgba(79, 109, 245, 0.2)' })
+  clearPreviewRegions()
+  endPreview()
+}
+
+sensitivitySlider.addEventListener('input', () => {
+  if (!previewingRegionId) return
+  clearTimeout(sensitivityDebounceTimer)
+  sensitivityDebounceTimer = setTimeout(() => {
+    renderPreview(Number(sensitivitySlider.value))
+    refreshSelectionsList()
+  }, 60)
+})
+
 function refreshSelectionsList() {
-  const sorted = sortRegionsByStart(regions.getRegions())
+  const sorted = sortRegionsByStart(regions.getRegions().filter((r) => !isPreviewRegion(r)))
   renderSelectionsList(selectionsListEl, sorted, activeRegionId, {
     onActivate: activateRegion,
     onDelete: (id) => {
       const region = regions.getRegions().find((r) => r.id === id)
       if (region) region.remove()
     },
+    onSubdivide: startSubdivide,
+    onConfirmSubdivide: confirmSubdivide,
+    onCancelSubdivide: cancelSubdivide,
+    previewingId: previewingRegionId,
   })
 }
 
@@ -148,7 +265,7 @@ window.addEventListener('keydown', (e) => {
 
   if (e.key === 'Tab') {
     e.preventDefault()
-    const sorted = sortRegionsByStart(regions.getRegions())
+    const sorted = sortRegionsByStart(regions.getRegions().filter((r) => !isPreviewRegion(r)))
     const direction = e.shiftKey ? 'prev' : 'next'
     const nextId = getAdjacentRegionId(sorted, activeRegionId, direction)
     if (nextId) activateRegion(nextId)
