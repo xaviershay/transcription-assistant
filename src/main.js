@@ -205,6 +205,7 @@ volumeInput.addEventListener('input', () => {
 const selectionsListEl = document.getElementById('selections-list')
 const activeLabel = document.getElementById('active-label')
 const sensitivitySlider = document.getElementById('onset-sensitivity')
+const deleteAllBtn = document.getElementById('delete-all-selections')
 
 let activeRegionId = null
 
@@ -332,7 +333,14 @@ function refreshSelectionsList() {
     onCancelSubdivide: cancelSubdivide,
     previewingId: previewingRegionId,
   })
+  deleteAllBtn.disabled = sorted.length === 0
 }
+
+deleteAllBtn.addEventListener('click', () => {
+  for (const region of regions.getRegions().filter((r) => !isPreviewRegion(r))) {
+    region.remove()
+  }
+})
 
 function activateRegion(id) {
   const region = regions.getRegions().find((r) => r.id === id)
