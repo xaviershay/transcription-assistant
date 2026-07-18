@@ -34,6 +34,22 @@ export function createSpectrumAnalyser(wavesurfer, canvas) {
   let viewMaxFreq = MAX_FREQ
   let animationFrame = null
 
+  // Zoom level is derived from this accumulator, not from repeatedly multiplying
+  // the current span - a chain of multiplicative "zoom in by X" operations is only
+  // as reversible as its individual steps are exact opposites, which broke down for
+  // real wheel/trackpad input (see zoomAt below). Deriving span fresh from a single
+  // clamped, summed accumulator makes the result path-independent: any sequence of
+  // deltaY events that sums to zero returns to exactly the same span, regardless of
+  // how many events it was split into or their individual sizes.
+  const MAX_LOG_SPAN = Math.log2(MAX_FREQ) - Math.log2(MIN_FREQ)
+  const MIN_LOG_SPAN = MIN_SPAN_SEMITONES / 12
+  const MAX_ZOOM_ACCUMULATOR = (100 * Math.log(MAX_LOG_SPAN / MIN_LOG_SPAN)) / Math.log(ZOOM_FACTOR)
+  let zoomAccumulator = 0
+
+  function spanForAccumulator(accumulator) {
+    return MAX_LOG_SPAN * Math.pow(ZOOM_FACTOR, -accumulator / 100)
+  }
+
   function xForFreq(freq) {
     const logMin = Math.log2(viewMinFreq)
     const logMax = Math.log2(viewMaxFreq)
@@ -46,7 +62,7 @@ export function createSpectrumAnalyser(wavesurfer, canvas) {
     return Math.pow(2, logMin + (x / canvas.width) * (logMax - logMin))
   }
 
-  function zoomAt(cursorX, factor) {
+  function zoomAt(cursorX, deltaY) {
     const anchorFreq = freqForX(cursorX)
     const logMin = Math.log2(viewMinFreq)
     const logMax = Math.log2(viewMaxFreq)
@@ -54,9 +70,8 @@ export function createSpectrumAnalyser(wavesurfer, canvas) {
     const oldSpan = logMax - logMin
     const anchorFrac = (logAnchor - logMin) / oldSpan
 
-    const minSpan = MIN_SPAN_SEMITONES / 12
-    const maxSpan = Math.log2(MAX_FREQ) - Math.log2(MIN_FREQ)
-    const newSpan = Math.min(maxSpan, Math.max(minSpan, oldSpan / factor))
+    zoomAccumulator = Math.min(MAX_ZOOM_ACCUMULATOR, Math.max(0, zoomAccumulator - deltaY))
+    const newSpan = spanForAccumulator(zoomAccumulator)
 
     let newLogMin = logAnchor - anchorFrac * newSpan
     let newLogMax = newLogMin + newSpan
@@ -109,16 +124,7 @@ export function createSpectrumAnalyser(wavesurfer, canvas) {
       } else {
         const rect = canvas.getBoundingClientRect()
         const cursorX = ((e.clientX - rect.left) / rect.width) * canvas.width
-        // Scale by deltaY magnitude, not just its sign - a mouse wheel fires one
-        // consistent-size event per notch, but a trackpad fires many small,
-        // variable-size events per gesture. Applying a fixed factor per event
-        // (regardless of size) meant scrolling up then back down the same
-        // physical distance could span a different number of events and drift
-        // the zoom level. Scaling continuously by deltaY means the result only
-        // depends on the total deltaY of a gesture, which is reversible by
-        // construction: 100 is calibrated so a standard mouse-wheel notch
-        // (deltaY ~100) still applies exactly ZOOM_FACTOR, unchanged from before.
-        zoomAt(cursorX, Math.pow(ZOOM_FACTOR, -e.deltaY / 100))
+        zoomAt(cursorX, e.deltaY)
       }
       if (!animationFrame) render()
     },
