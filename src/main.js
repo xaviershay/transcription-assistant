@@ -6,6 +6,7 @@ import { renderSelectionsList } from './selectionsList.js'
 
 const uploadInput = document.getElementById('upload')
 const uploadError = document.getElementById('upload-error')
+const uploadFilename = document.getElementById('upload-filename')
 const waveformContainer = document.getElementById('waveform')
 const playPauseBtn = document.getElementById('play-pause')
 const spectrumCanvas = document.getElementById('spectrum')
@@ -31,6 +32,7 @@ uploadInput.addEventListener('change', () => {
   const file = uploadInput.files[0]
   if (!file) return
   uploadError.hidden = true
+  uploadFilename.textContent = file.name
   wavesurfer.loadBlob(file)
 })
 

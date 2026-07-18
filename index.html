@@ -9,8 +9,10 @@
     <main>
       <h1>Ear Transcriber</h1>
 
-      <section id="upload-section">
-        <input type="file" id="upload" accept="audio/*" />
+      <section id="upload-section" class="panel">
+        <label for="upload" class="file-button">Choose Audio File</label>
+        <input type="file" id="upload" accept="audio/*" class="visually-hidden" />
+        <span id="upload-filename"></span>
         <p id="upload-error" class="error" hidden></p>
       </section>
 
@@ -18,7 +20,7 @@
         <div id="waveform"></div>
       </section>
 
-      <section id="controls-section">
+      <section id="controls-section" class="panel">
         <button id="play-pause" disabled>Play</button>
         <label for="speed">Speed</label>
         <input type="range" id="speed" min="0.25" max="1.5" step="0.05" value="1" />
@@ -30,7 +32,7 @@
         <canvas id="spectrum" width="800" height="200"></canvas>
       </section>
 
-      <section id="selections-section">
+      <section id="selections-section" class="panel">
         <h2>Selections</h2>
         <ul id="selections-list"></ul>
       </section>
