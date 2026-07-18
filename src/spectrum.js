@@ -109,7 +109,16 @@ export function createSpectrumAnalyser(wavesurfer, canvas) {
       } else {
         const rect = canvas.getBoundingClientRect()
         const cursorX = ((e.clientX - rect.left) / rect.width) * canvas.width
-        zoomAt(cursorX, e.deltaY < 0 ? ZOOM_FACTOR : 1 / ZOOM_FACTOR)
+        // Scale by deltaY magnitude, not just its sign - a mouse wheel fires one
+        // consistent-size event per notch, but a trackpad fires many small,
+        // variable-size events per gesture. Applying a fixed factor per event
+        // (regardless of size) meant scrolling up then back down the same
+        // physical distance could span a different number of events and drift
+        // the zoom level. Scaling continuously by deltaY means the result only
+        // depends on the total deltaY of a gesture, which is reversible by
+        // construction: 100 is calibrated so a standard mouse-wheel notch
+        // (deltaY ~100) still applies exactly ZOOM_FACTOR, unchanged from before.
+        zoomAt(cursorX, Math.pow(ZOOM_FACTOR, -e.deltaY / 100))
       }
       if (!animationFrame) render()
     },
