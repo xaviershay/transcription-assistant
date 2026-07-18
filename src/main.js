@@ -1,5 +1,6 @@
 import './style.css'
 import { createWaveSurfer } from './waveform.js'
+import TimelinePlugin from 'wavesurfer.js/plugins/timeline'
 import { createSpectrumAnalyser } from './spectrum.js'
 import { sortRegionsByStart, getAdjacentRegionId } from './selections.js'
 import { renderSelectionsList } from './selectionsList.js'
@@ -80,6 +81,54 @@ waveformContainer.addEventListener(
   },
   { passive: false },
 )
+
+const tempoSlider = document.getElementById('tempo')
+const tempoLabel = document.getElementById('tempo-label')
+const subdivisionsSlider = document.getElementById('subdivisions')
+const subdivisionsLabel = document.getElementById('subdivisions-label')
+const setBeatOneBtn = document.getElementById('set-beat-one')
+
+let beatBpm = Number(tempoSlider.value)
+let beatSubdivisions = Number(subdivisionsSlider.value)
+let beatOffset = 0
+let settingBeatOne = false
+let timelinePlugin = null
+
+function rebuildTimeline() {
+  if (timelinePlugin) {
+    wavesurfer.unregisterPlugin(timelinePlugin)
+  }
+  const secondsPerBeat = 60 / beatBpm
+  timelinePlugin = TimelinePlugin.create({
+    height: 20,
+    timeInterval: secondsPerBeat / beatSubdivisions,
+    primaryLabelInterval: secondsPerBeat,
+    timeOffset: beatOffset,
+    formatTimeCallback: (t) => String(Math.round(t / secondsPerBeat) + 1),
+    style: { color: '#e6e6e6', fontSize: '10px' },
+  })
+  wavesurfer.registerPlugin(timelinePlugin)
+}
+
+rebuildTimeline()
+
+tempoSlider.addEventListener('input', () => {
+  beatBpm = Number(tempoSlider.value)
+  tempoLabel.textContent = `${beatBpm} BPM`
+  rebuildTimeline()
+})
+
+subdivisionsSlider.addEventListener('input', () => {
+  beatSubdivisions = Number(subdivisionsSlider.value)
+  subdivisionsLabel.textContent = String(beatSubdivisions)
+  rebuildTimeline()
+})
+
+setBeatOneBtn.addEventListener('click', () => {
+  settingBeatOne = true
+  setBeatOneBtn.textContent = 'Click waveform…'
+  setBeatOneBtn.disabled = true
+})
 
 const speedInput = document.getElementById('speed')
 const speedLabel = document.getElementById('speed-label')
@@ -268,7 +317,14 @@ regions.on('region-out', (region) => {
   }
 })
 
-wavesurfer.on('interaction', () => {
+wavesurfer.on('interaction', (newTime) => {
+  if (settingBeatOne) {
+    beatOffset = newTime
+    settingBeatOne = false
+    setBeatOneBtn.textContent = 'Set Beat 1'
+    setBeatOneBtn.disabled = false
+    rebuildTimeline()
+  }
   activeRegionId = null
   activeLabel.textContent = ''
   refreshSelectionsList()
