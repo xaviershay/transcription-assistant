@@ -185,3 +185,15 @@ input[type='range']::-moz-range-track {
   display: flex;
   gap: 0.4rem;
 }
+
+footer {
+  margin-top: 1.5rem;
+  padding-top: 0.75rem;
+  text-align: center;
+  font-size: 0.8rem;
+  color: #6a6a6a;
+}
+
+footer a {
+  color: inherit;
+}
