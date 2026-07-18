@@ -102,6 +102,7 @@ export function createSpectrumAnalyser(wavesurfer, canvas) {
         const cursorX = ((e.clientX - rect.left) / rect.width) * canvas.width
         zoomAt(cursorX, e.deltaY < 0 ? ZOOM_FACTOR : 1 / ZOOM_FACTOR)
       }
+      if (!animationFrame) render()
     },
     { passive: false },
   )
@@ -112,7 +113,7 @@ export function createSpectrumAnalyser(wavesurfer, canvas) {
     return Math.max(1, Math.round(spanSemitones / desiredLabels))
   }
 
-  function draw() {
+  function render() {
     analyser.getByteFrequencyData(freqData)
 
     ctx.fillStyle = BACKGROUND_COLOR
@@ -137,7 +138,10 @@ export function createSpectrumAnalyser(wavesurfer, canvas) {
       const x = xForFreq(freq)
       ctx.fillText(frequencyToNoteName(freq), x, canvas.height - 2)
     }
+  }
 
+  function draw() {
+    render()
     animationFrame = requestAnimationFrame(draw)
   }
 
@@ -150,6 +154,8 @@ export function createSpectrumAnalyser(wavesurfer, canvas) {
     if (animationFrame) cancelAnimationFrame(animationFrame)
     animationFrame = null
   }
+
+  render()
 
   return { start, stop }
 }
