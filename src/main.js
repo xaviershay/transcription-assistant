@@ -6,6 +6,7 @@ import { sortRegionsByStart, getAdjacentRegionId } from './selections.js'
 import { renderSelectionsList } from './selectionsList.js'
 import { mixToMono, computeSpectralFlux, pickOnsets } from './onsets.js'
 import { computePeakGain, applyGain, encodeWav } from './normalize.js'
+import { computeFileHash, loadSettings, saveSettings } from './persistence.js'
 
 const uploadInput = document.getElementById('upload')
 const uploadError = document.getElementById('upload-error')
@@ -31,8 +32,7 @@ wavesurfer.on('ready', () => {
   }
 })
 
-async function normalizeFile(file) {
-  const arrayBuffer = await file.arrayBuffer()
+async function normalizeAudio(arrayBuffer) {
   const audioCtx = new AudioContext()
   try {
     const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer)
@@ -49,14 +49,46 @@ async function normalizeFile(file) {
   }
 }
 
+const DEFAULT_SETTINGS = { bpm: 120, subdivisions: 4, offset: 0, volume: 1 }
+
+let currentFileHash = null
+
+function applySettings(settings) {
+  beatBpm = settings.bpm
+  beatSubdivisions = settings.subdivisions
+  beatOffset = settings.offset
+  tempoSlider.value = String(beatBpm)
+  tempoLabel.textContent = `${beatBpm} BPM`
+  subdivisionsSlider.value = String(beatSubdivisions)
+  subdivisionsLabel.textContent = String(beatSubdivisions)
+  volumeInput.value = String(settings.volume)
+  volumeLabel.textContent = `${Math.round(settings.volume * 100)}%`
+  wavesurfer.setVolume(settings.volume)
+  rebuildTimeline()
+}
+
+function saveCurrentSettings() {
+  if (!currentFileHash) return
+  saveSettings(localStorage, currentFileHash, {
+    bpm: beatBpm,
+    subdivisions: beatSubdivisions,
+    offset: beatOffset,
+    volume: Number(volumeInput.value),
+  })
+}
+
 uploadInput.addEventListener('change', async () => {
   const file = uploadInput.files[0]
   if (!file) return
   uploadError.hidden = true
   uploadFilename.textContent = file.name
 
+  const arrayBuffer = await file.arrayBuffer()
+  currentFileHash = await computeFileHash(arrayBuffer)
+  applySettings(loadSettings(localStorage, currentFileHash) ?? DEFAULT_SETTINGS)
+
   try {
-    const normalizedBlob = await normalizeFile(file)
+    const normalizedBlob = await normalizeAudio(arrayBuffer)
     wavesurfer.loadBlob(normalizedBlob)
   } catch {
     wavesurfer.loadBlob(file)
@@ -122,12 +154,14 @@ tempoSlider.addEventListener('input', () => {
   beatBpm = Number(tempoSlider.value)
   tempoLabel.textContent = `${beatBpm} BPM`
   rebuildTimeline()
+  saveCurrentSettings()
 })
 
 subdivisionsSlider.addEventListener('input', () => {
   beatSubdivisions = Number(subdivisionsSlider.value)
   subdivisionsLabel.textContent = String(beatSubdivisions)
   rebuildTimeline()
+  saveCurrentSettings()
 })
 
 setBeatOneBtn.addEventListener('click', () => {
@@ -165,6 +199,7 @@ volumeInput.addEventListener('input', () => {
   const volume = Number(volumeInput.value)
   wavesurfer.setVolume(volume)
   volumeLabel.textContent = `${Math.round(volume * 100)}%`
+  saveCurrentSettings()
 })
 
 const selectionsListEl = document.getElementById('selections-list')
@@ -338,6 +373,7 @@ wavesurfer.on('interaction', (newTime) => {
     setBeatOneBtn.textContent = 'Set Beat 1'
     setBeatOneBtn.disabled = false
     rebuildTimeline()
+    saveCurrentSettings()
   }
   activeRegionId = null
   activeLabel.textContent = ''
