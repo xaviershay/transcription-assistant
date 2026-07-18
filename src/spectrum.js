@@ -126,10 +126,6 @@ export function createSpectrumAnalyser(wavesurfer, canvas) {
         const cursorX = ((e.clientX - rect.left) / rect.width) * canvas.width
         zoomAt(cursorX, e.deltaY)
       }
-      console.log(
-        `[spectrum wheel] deltaY=${e.deltaY} deltaMode=${e.deltaMode} shiftKey=${e.shiftKey} ` +
-          `zoomAccumulator=${zoomAccumulator.toFixed(2)} view=[${viewMinFreq.toFixed(2)}, ${viewMaxFreq.toFixed(2)}]`,
-      )
       if (!animationFrame) render()
     },
     { passive: false },
