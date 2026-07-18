@@ -92,6 +92,38 @@ any of the three controls change — calls `wavesurfer.unregisterPlugin()`
 on the current instance before registering a fresh one with recomputed
 options.
 
+## Post-launch fix: beat labels disappearing at certain tempos
+
+Reported after initial ship: some labeled beat marks silently vanished
+after changing tempo, more so after also setting a beat-1 offset. Root
+cause, found via `systematic-debugging` and confirmed by evaluating the
+Timeline plugin's actual primary-classification formula in Node against
+the failing BPM values: `primaryLabelInterval` is time-based and computes
+`Math.round(100*t) % Math.round(100*interval) == 0` — rounding the
+interval itself to 2 decimal places internally. For a BPM whose
+`secondsPerBeat` doesn't round cleanly to 2 decimals (e.g. 133 BPM =
+0.451128...s/beat → rounds to 0.45), that rounding error compounds beat
+over beat and the check starts failing after only a handful of beats —
+confirmed directly: BPM 133 matched correctly through beat 5, then every
+beat after was wrongly classified as a plain unlabeled tick.
+
+Fixed by switching to `primaryLabelSpacing` — an index-based sibling
+option in the same plugin (`e % spacing == 0` on the tick loop counter,
+not a time comparison) that can't drift since it never touches floating
+point. `primaryLabelInterval` is kept but neutralized (set to `1e6`,
+a value no real file duration reaches) rather than deleted, since leaving
+it unset falls back to the plugin's own auto-computed default interval,
+which could independently — and unpredictably — mark unrelated ticks
+primary by coincidence.
+
+Verified against a 20-second test file across the BPM values that failed
+(133, 90, 140, 87) plus the two that had coincidentally worked before
+(120, 100 — both have a `secondsPerBeat` that rounds cleanly, which is
+why the bug didn't surface during the original implementation's manual
+verification pass) — all now produce gap-free sequential labeling. Also
+verified the exact combination reported: a tempo change together with a
+beat-1 offset set by clicking the waveform.
+
 ## Non-goals
 
 - No time signature / measure / downbeat distinction — every beat looks
