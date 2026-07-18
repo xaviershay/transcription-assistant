@@ -20,6 +20,16 @@
         <div id="waveform"></div>
       </section>
 
+      <section id="beat-grid-section" class="panel">
+        <label for="tempo">Tempo</label>
+        <input type="range" id="tempo" min="40" max="240" step="1" value="120" />
+        <span id="tempo-label">120 BPM</span>
+        <label for="subdivisions">Subdivisions</label>
+        <input type="range" id="subdivisions" min="1" max="8" step="1" value="4" />
+        <span id="subdivisions-label">4</span>
+        <button id="set-beat-one">Set Beat 1</button>
+      </section>
+
       <section id="controls-section" class="panel">
         <button id="play-pause" disabled>Play</button>
         <label for="speed">Speed</label>
