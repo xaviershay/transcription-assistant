@@ -4,6 +4,7 @@ import { createSpectrumAnalyser } from './spectrum.js'
 import { sortRegionsByStart, getAdjacentRegionId } from './selections.js'
 import { renderSelectionsList } from './selectionsList.js'
 import { mixToMono, computeSpectralFlux, pickOnsets } from './onsets.js'
+import { computePeakGain, applyGain, encodeWav } from './normalize.js'
 
 const uploadInput = document.getElementById('upload')
 const uploadError = document.getElementById('upload-error')
@@ -29,12 +30,36 @@ wavesurfer.on('ready', () => {
   }
 })
 
-uploadInput.addEventListener('change', () => {
+async function normalizeFile(file) {
+  const arrayBuffer = await file.arrayBuffer()
+  const audioCtx = new AudioContext()
+  try {
+    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer)
+    const channelData = []
+    for (let ch = 0; ch < audioBuffer.numberOfChannels; ch++) {
+      channelData.push(audioBuffer.getChannelData(ch))
+    }
+    const gain = computePeakGain(channelData)
+    const normalized = applyGain(channelData, gain)
+    const wavBuffer = encodeWav(normalized, audioBuffer.sampleRate)
+    return new Blob([wavBuffer], { type: 'audio/wav' })
+  } finally {
+    audioCtx.close()
+  }
+}
+
+uploadInput.addEventListener('change', async () => {
   const file = uploadInput.files[0]
   if (!file) return
   uploadError.hidden = true
   uploadFilename.textContent = file.name
-  wavesurfer.loadBlob(file)
+
+  try {
+    const normalizedBlob = await normalizeFile(file)
+    wavesurfer.loadBlob(normalizedBlob)
+  } catch {
+    wavesurfer.loadBlob(file)
+  }
 })
 
 const ZOOM_FACTOR = 1.2
