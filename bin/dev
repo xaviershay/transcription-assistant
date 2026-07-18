@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Starts the local dev server (with hot reload) at http://localhost:5173
+set -euo pipefail
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT"
+
+npm run dev
