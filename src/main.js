@@ -138,6 +138,8 @@ setBeatOneBtn.addEventListener('click', () => {
 
 const speedInput = document.getElementById('speed')
 const speedLabel = document.getElementById('speed-label')
+const volumeInput = document.getElementById('volume')
+const volumeLabel = document.getElementById('volume-label')
 
 playPauseBtn.addEventListener('click', () => {
   wavesurfer.playPause()
@@ -157,6 +159,12 @@ speedInput.addEventListener('input', () => {
   const rate = Number(speedInput.value)
   wavesurfer.setPlaybackRate(rate, true)
   speedLabel.textContent = `${rate.toFixed(2)}x`
+})
+
+volumeInput.addEventListener('input', () => {
+  const volume = Number(volumeInput.value)
+  wavesurfer.setVolume(volume)
+  volumeLabel.textContent = `${Math.round(volume * 100)}%`
 })
 
 const selectionsListEl = document.getElementById('selections-list')
