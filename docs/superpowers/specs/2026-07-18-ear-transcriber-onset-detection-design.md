@@ -93,8 +93,39 @@ threshold). Verified constants (via prototyping, see above): `FFT_SIZE
 = 2048`, `HOP_SIZE = 512`, `MIN_ONSET_GAP_SECONDS = 0.06`,
 `MIN_ONSET_START_SECONDS = 0.03`, `LOCAL_MEAN_WINDOW_FRAMES = 10`,
 `SILENCE_LOOKAHEAD_FRAMES = 3`, `SILENCE_FLOOR_FRACTION = 0.15`,
-threshold formula `localMean(flux) * (2 / sensitivity)`. UI slider range
-0.5–5, default 1.5.
+threshold formula `localMean(flux) * (2 / sensitivity)`.
+
+**UI slider range revised during implementation**, based on findings not
+available at design time (see "Implementation findings" below): 0.2–2.5,
+default 1.0 (was 0.5–5, default 1.5 as originally planned from
+synthetic-signal-only calibration).
+
+### Implementation findings (post-design)
+
+Two issues surfaced only through manual browser verification (a headless
+Chromium session driven by Playwright, with a generated test file) that no
+amount of vitest coverage on synthetic `Float32Array`s could have caught:
+
+1. **wavesurfer.js decodes its internal buffer at 8000Hz by default**
+   (`sampleRate` option, documented as "doesn't affect playback" — only
+   affects `getDecodedData()`). Subdivide uses `getDecodedData()` as its
+   audio source, so without an explicit `sampleRate: 44100` in
+   `WaveSurfer.create()`, the algorithm's constants (tuned for 44100Hz)
+   produced a 2048-sample window spanning 256ms of audio instead of 46ms —
+   a much coarser time resolution than intended, causing detected onsets
+   to lag the true boundary by ~150-190ms instead of the expected ~30-40ms.
+   Fixed in `src/waveform.js`.
+2. **Real decoded/quantized audio over-triggers more than pristine
+   synthetic signals at the same sensitivity.** Confirmed by dumping the
+   actual decoded `Float32Array` from a real browser session and running
+   it through `onsets.js` directly in Node: sensitivity 1.5 (clean on the
+   vitest suite's synthetic tones) produced 10 onsets on a 5-note real
+   passage; sweeping sensitivity against the same real samples showed
+   0.2–1.0 consistently gave the correct 4. The vitest suite itself
+   remains valid — it correctly tests the algorithm's behavior on clean
+   signals — but the UI's default needed calibrating against what users
+   will actually upload (always real decoded/quantized audio, never a
+   pristine in-memory buffer).
 
 ## UI: preview → confirm/cancel
 
