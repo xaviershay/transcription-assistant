@@ -7,7 +7,7 @@ import {
   qForAccumulator,
   updateQAccumulator,
   accumulatorForQ,
-  DEFAULT_Q,
+  defaultEqBands,
 } from './eq.js'
 
 const MIN_FREQ = 27.5 // A0
@@ -19,6 +19,7 @@ const BACKGROUND_COLOR = '#121212'
 const LABEL_COLOR = '#f0f0f0'
 const BAR_COLOR = '#4f6df5'
 const EQ_COLOR = '#f5a64f'
+const EQ_BAND_COLORS = ['#f5a64f', '#4fc3f5', '#f54f8c']
 const EQ_HIT_RADIUS = 8
 
 export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) {
@@ -33,15 +34,20 @@ export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) 
 
   const audioCtx = new AudioContext()
   const source = audioCtx.createMediaElementSource(wavesurfer.getMediaElement())
-  const filter = audioCtx.createBiquadFilter()
-  filter.type = 'peaking'
-  filter.frequency.value = 1000
-  filter.gain.value = 0
-  filter.Q.value = 1
+  const filters = defaultEqBands().map(({ freq, gain, q }) => {
+    const node = audioCtx.createBiquadFilter()
+    node.type = 'peaking'
+    node.frequency.value = freq
+    node.gain.value = gain
+    node.Q.value = q
+    return node
+  })
   const analyser = audioCtx.createAnalyser()
   analyser.fftSize = 8192
-  source.connect(filter)
-  filter.connect(analyser)
+  source.connect(filters[0])
+  filters[0].connect(filters[1])
+  filters[1].connect(filters[2])
+  filters[2].connect(analyser)
   analyser.connect(audioCtx.destination)
 
   const freqData = new Uint8Array(analyser.frequencyBinCount)
@@ -133,11 +139,19 @@ export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) 
     viewMaxFreq = Math.pow(2, newLogMax)
   }
 
-  let draggingEq = false
-  let qAccumulator = accumulatorForQ(DEFAULT_Q)
+  let draggingBandIndex = null
+  let qAccumulators = filters.map((f) => accumulatorForQ(f.Q.value))
 
-  function dotPosition() {
-    return { x: xForFreq(filter.frequency.value), y: gainToY(filter.gain.value, canvas.height) }
+  function dotPosition(index) {
+    return { x: xForFreq(filters[index].frequency.value), y: gainToY(filters[index].gain.value, canvas.height) }
+  }
+
+  function findNearDotIndex(x, y) {
+    for (let i = 0; i < filters.length; i++) {
+      const dot = dotPosition(i)
+      if (isNearDot(x, y, dot.x, dot.y, EQ_HIT_RADIUS)) return i
+    }
+    return null
   }
 
   function eventCanvasPos(e) {
@@ -150,24 +164,21 @@ export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) 
 
   canvas.addEventListener('mousedown', (e) => {
     const { x, y } = eventCanvasPos(e)
-    const dot = dotPosition()
-    if (isNearDot(x, y, dot.x, dot.y, EQ_HIT_RADIUS)) {
-      draggingEq = true
-    }
+    draggingBandIndex = findNearDotIndex(x, y)
   })
 
   window.addEventListener('mousemove', (e) => {
-    if (!draggingEq) return
+    if (draggingBandIndex === null) return
     const { x, y } = eventCanvasPos(e)
     const clampedX = Math.min(canvas.width, Math.max(0, x))
-    filter.frequency.value = freqForX(clampedX)
-    filter.gain.value = yToGain(y, canvas.height)
+    filters[draggingBandIndex].frequency.value = freqForX(clampedX)
+    filters[draggingBandIndex].gain.value = yToGain(y, canvas.height)
     onEqChange?.()
     if (!animationFrame) render()
   })
 
   window.addEventListener('mouseup', () => {
-    draggingEq = false
+    draggingBandIndex = null
   })
 
   canvas.addEventListener(
@@ -175,10 +186,10 @@ export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) 
     (e) => {
       e.preventDefault()
       const { x: cursorX, y: cursorY } = eventCanvasPos(e)
-      const dot = dotPosition()
-      if (isNearDot(cursorX, cursorY, dot.x, dot.y, EQ_HIT_RADIUS)) {
-        qAccumulator = updateQAccumulator(qAccumulator, e.deltaY)
-        filter.Q.value = qForAccumulator(qAccumulator)
+      const hoveredIndex = findNearDotIndex(cursorX, cursorY)
+      if (hoveredIndex !== null) {
+        qAccumulators[hoveredIndex] = updateQAccumulator(qAccumulators[hoveredIndex], e.deltaY)
+        filters[hoveredIndex].Q.value = qForAccumulator(qAccumulators[hoveredIndex])
         onEqChange?.()
       } else if (e.shiftKey) {
         pan(e.deltaY > 0 ? 1 : -1)
@@ -227,19 +238,24 @@ export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) 
     ctx.beginPath()
     for (let x = 0; x <= canvas.width; x += 2) {
       const freq = freqForX(x)
-      const responseDb = peakingResponseDb(freq, filter.frequency.value, filter.gain.value, filter.Q.value, audioCtx.sampleRate)
+      const responseDb = filters.reduce(
+        (sum, f) => sum + peakingResponseDb(freq, f.frequency.value, f.gain.value, f.Q.value, audioCtx.sampleRate),
+        0,
+      )
       const y = gainToY(responseDb, canvas.height)
       if (x === 0) ctx.moveTo(x, y)
       else ctx.lineTo(x, y)
     }
     ctx.stroke()
 
-    const dotX = xForFreq(filter.frequency.value)
-    const dotY = gainToY(filter.gain.value, canvas.height)
-    ctx.fillStyle = EQ_COLOR
-    ctx.beginPath()
-    ctx.arc(dotX, dotY, 5, 0, 2 * Math.PI)
-    ctx.fill()
+    filters.forEach((f, i) => {
+      const dotX = xForFreq(f.frequency.value)
+      const dotY = gainToY(f.gain.value, canvas.height)
+      ctx.fillStyle = EQ_BAND_COLORS[i]
+      ctx.beginPath()
+      ctx.arc(dotX, dotY, 5, 0, 2 * Math.PI)
+      ctx.fill()
+    })
   }
 
   function draw() {
@@ -265,14 +281,16 @@ export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) 
   }
 
   function getEqState() {
-    return { freq: filter.frequency.value, gain: filter.gain.value, q: filter.Q.value }
+    return filters.map((f) => ({ freq: f.frequency.value, gain: f.gain.value, q: f.Q.value }))
   }
 
-  function setEqState({ freq, gain, q }) {
-    filter.frequency.value = freq
-    filter.gain.value = gain
-    filter.Q.value = q
-    qAccumulator = accumulatorForQ(q)
+  function setEqState(bands) {
+    bands.forEach((band, i) => {
+      filters[i].frequency.value = band.freq
+      filters[i].gain.value = band.gain
+      filters[i].Q.value = band.q
+      qAccumulators[i] = accumulatorForQ(band.q)
+    })
   }
 
   render()
