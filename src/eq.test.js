@@ -3,6 +3,7 @@ import { MIN_GAIN, MAX_GAIN, clampGain, gainToY, yToGain } from './eq.js'
 import { MIN_Q, MAX_Q, DEFAULT_Q, accumulatorForQ, qForAccumulator, updateQAccumulator } from './eq.js'
 import { peakingResponseDb } from './eq.js'
 import { isNearDot } from './eq.js'
+import { defaultEqBands } from './eq.js'
 
 describe('clampGain', () => {
   it('passes through values within range', () => {
@@ -157,5 +158,24 @@ describe('isNearDot', () => {
 
   it('accounts for both x and y distance', () => {
     expect(isNearDot(106, 106, 100, 100, 8)).toBe(false)
+  })
+})
+
+describe('defaultEqBands', () => {
+  it('returns 3 bands with the documented defaults', () => {
+    expect(defaultEqBands()).toEqual([
+      { freq: 200, gain: 0, q: 1 },
+      { freq: 1000, gain: 0, q: 1 },
+      { freq: 3000, gain: 0, q: 1 },
+    ])
+  })
+
+  it('returns a fresh array each call, safe to mutate', () => {
+    const a = defaultEqBands()
+    const b = defaultEqBands()
+    expect(a).not.toBe(b)
+    expect(a[0]).not.toBe(b[0])
+    a[0].gain = 12
+    expect(b[0].gain).toBe(0)
   })
 })

@@ -70,3 +70,11 @@ export function isNearDot(cursorX, cursorY, dotX, dotY, hitRadius) {
   const dy = cursorY - dotY
   return dx * dx + dy * dy <= hitRadius * hitRadius
 }
+
+export function defaultEqBands() {
+  return [
+    { freq: 200, gain: 0, q: 1 },
+    { freq: 1000, gain: 0, q: 1 },
+    { freq: 3000, gain: 0, q: 1 },
+  ]
+}
