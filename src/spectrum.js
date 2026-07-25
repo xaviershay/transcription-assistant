@@ -1,5 +1,14 @@
 import { frequencyToNoteName, midiFromFrequency } from './notes.js'
-import { gainToY, yToGain, peakingResponseDb, isNearDot } from './eq.js'
+import {
+  gainToY,
+  yToGain,
+  peakingResponseDb,
+  isNearDot,
+  qForAccumulator,
+  updateQAccumulator,
+  accumulatorForQ,
+  DEFAULT_Q,
+} from './eq.js'
 
 const MIN_FREQ = 27.5 // A0
 const MAX_FREQ = 4186 // C8
@@ -125,6 +134,7 @@ export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) 
   }
 
   let draggingEq = false
+  let qAccumulator = accumulatorForQ(DEFAULT_Q)
 
   function dotPosition() {
     return { x: xForFreq(filter.frequency.value), y: gainToY(filter.gain.value, canvas.height) }
@@ -164,11 +174,15 @@ export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) 
     'wheel',
     (e) => {
       e.preventDefault()
-      if (e.shiftKey) {
+      const { x: cursorX, y: cursorY } = eventCanvasPos(e)
+      const dot = dotPosition()
+      if (isNearDot(cursorX, cursorY, dot.x, dot.y, EQ_HIT_RADIUS)) {
+        qAccumulator = updateQAccumulator(qAccumulator, e.deltaY)
+        filter.Q.value = qForAccumulator(qAccumulator)
+        onEqChange?.()
+      } else if (e.shiftKey) {
         pan(e.deltaY > 0 ? 1 : -1)
       } else {
-        const rect = canvas.getBoundingClientRect()
-        const cursorX = ((e.clientX - rect.left) / rect.width) * canvas.width
         zoomAt(cursorX, e.deltaY)
       }
       if (!animationFrame) render()
@@ -258,6 +272,7 @@ export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) 
     filter.frequency.value = freq
     filter.gain.value = gain
     filter.Q.value = q
+    qAccumulator = accumulatorForQ(q)
   }
 
   render()
