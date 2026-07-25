@@ -1,4 +1,5 @@
 import { frequencyToNoteName, midiFromFrequency } from './notes.js'
+import { gainToY, peakingResponseDb } from './eq.js'
 
 const MIN_FREQ = 27.5 // A0
 const MAX_FREQ = 4186 // C8
@@ -8,6 +9,7 @@ const PAN_FRACTION = 0.15
 const BACKGROUND_COLOR = '#121212'
 const LABEL_COLOR = '#f0f0f0'
 const BAR_COLOR = '#4f6df5'
+const EQ_COLOR = '#f5a64f'
 
 export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) {
   function syncCanvasWidth() {
@@ -168,6 +170,25 @@ export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) 
       const x = xForFreq(freq)
       ctx.fillText(frequencyToNoteName(freq), x, canvas.height - 2)
     }
+
+    ctx.strokeStyle = EQ_COLOR
+    ctx.lineWidth = 2
+    ctx.beginPath()
+    for (let x = 0; x <= canvas.width; x += 2) {
+      const freq = freqForX(x)
+      const responseDb = peakingResponseDb(freq, filter.frequency.value, filter.gain.value, filter.Q.value, audioCtx.sampleRate)
+      const y = gainToY(responseDb, canvas.height)
+      if (x === 0) ctx.moveTo(x, y)
+      else ctx.lineTo(x, y)
+    }
+    ctx.stroke()
+
+    const dotX = xForFreq(filter.frequency.value)
+    const dotY = gainToY(filter.gain.value, canvas.height)
+    ctx.fillStyle = EQ_COLOR
+    ctx.beginPath()
+    ctx.arc(dotX, dotY, 5, 0, 2 * Math.PI)
+    ctx.fill()
   }
 
   function draw() {
