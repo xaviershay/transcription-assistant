@@ -28,8 +28,9 @@ wavesurfer.on('ready', () => {
   uploadError.hidden = true
   playPauseBtn.disabled = false
   if (!spectrumAnalyser) {
-    spectrumAnalyser = createSpectrumAnalyser(wavesurfer, spectrumCanvas)
+    spectrumAnalyser = createSpectrumAnalyser(wavesurfer, spectrumCanvas, { onEqChange: scheduleEqSave })
   }
+  spectrumAnalyser.setEqState(pendingEqSettings)
 })
 
 async function normalizeAudio(arrayBuffer) {
@@ -49,9 +50,10 @@ async function normalizeAudio(arrayBuffer) {
   }
 }
 
-const DEFAULT_SETTINGS = { bpm: 120, subdivisions: 4, offset: 0, volume: 1 }
+const DEFAULT_SETTINGS = { bpm: 120, subdivisions: 4, offset: 0, volume: 1, eqFreq: 1000, eqGain: 0, eqQ: 1 }
 
 let currentFileHash = null
+let pendingEqSettings = { freq: DEFAULT_SETTINGS.eqFreq, gain: DEFAULT_SETTINGS.eqGain, q: DEFAULT_SETTINGS.eqQ }
 
 function applySettings(settings) {
   beatBpm = settings.bpm
@@ -65,15 +67,27 @@ function applySettings(settings) {
   volumeLabel.textContent = `${Math.round(settings.volume * 100)}%`
   wavesurfer.setVolume(settings.volume)
   rebuildTimeline()
+  pendingEqSettings = { freq: settings.eqFreq, gain: settings.eqGain, q: settings.eqQ }
+}
+
+let eqSaveDebounceTimer = null
+
+function scheduleEqSave() {
+  clearTimeout(eqSaveDebounceTimer)
+  eqSaveDebounceTimer = setTimeout(saveCurrentSettings, 60)
 }
 
 function saveCurrentSettings() {
   if (!currentFileHash) return
+  const eq = spectrumAnalyser ? spectrumAnalyser.getEqState() : pendingEqSettings
   saveSettings(localStorage, currentFileHash, {
     bpm: beatBpm,
     subdivisions: beatSubdivisions,
     offset: beatOffset,
     volume: Number(volumeInput.value),
+    eqFreq: eq.freq,
+    eqGain: eq.gain,
+    eqQ: eq.q,
   })
 }
 
