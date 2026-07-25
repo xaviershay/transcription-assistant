@@ -7,6 +7,7 @@ import { renderSelectionsList } from './selectionsList.js'
 import { mixToMono, computeSpectralFlux, pickOnsets } from './onsets.js'
 import { computePeakGain, applyGain, encodeWav } from './normalize.js'
 import { computeFileHash, loadSettings, saveSettings } from './persistence.js'
+import { defaultEqBands } from './eq.js'
 
 const uploadInput = document.getElementById('upload')
 const uploadError = document.getElementById('upload-error')
@@ -50,10 +51,10 @@ async function normalizeAudio(arrayBuffer) {
   }
 }
 
-const DEFAULT_SETTINGS = { bpm: 120, subdivisions: 4, offset: 0, volume: 1, eqFreq: 1000, eqGain: 0, eqQ: 1 }
+const DEFAULT_SETTINGS = { bpm: 120, subdivisions: 4, offset: 0, volume: 1, eqBands: defaultEqBands() }
 
 let currentFileHash = null
-let pendingEqSettings = { freq: DEFAULT_SETTINGS.eqFreq, gain: DEFAULT_SETTINGS.eqGain, q: DEFAULT_SETTINGS.eqQ }
+let pendingEqSettings = DEFAULT_SETTINGS.eqBands
 
 function applySettings(settings) {
   beatBpm = settings.bpm
@@ -67,7 +68,7 @@ function applySettings(settings) {
   volumeLabel.textContent = `${Math.round(settings.volume * 100)}%`
   wavesurfer.setVolume(settings.volume)
   rebuildTimeline()
-  pendingEqSettings = { freq: settings.eqFreq, gain: settings.eqGain, q: settings.eqQ }
+  pendingEqSettings = settings.eqBands
 }
 
 let eqSaveDebounceTimer = null
@@ -79,15 +80,13 @@ function scheduleEqSave() {
 
 function saveCurrentSettings() {
   if (!currentFileHash) return
-  const eq = spectrumAnalyser ? spectrumAnalyser.getEqState() : pendingEqSettings
+  const eqBands = spectrumAnalyser ? spectrumAnalyser.getEqState() : pendingEqSettings
   saveSettings(localStorage, currentFileHash, {
     bpm: beatBpm,
     subdivisions: beatSubdivisions,
     offset: beatOffset,
     volume: Number(volumeInput.value),
-    eqFreq: eq.freq,
-    eqGain: eq.gain,
-    eqQ: eq.q,
+    eqBands,
   })
 }
 
@@ -354,6 +353,13 @@ deleteAllBtn.addEventListener('click', () => {
   for (const region of regions.getRegions().filter((r) => !isPreviewRegion(r))) {
     region.remove()
   }
+})
+
+const resetEqBtn = document.getElementById('reset-eq')
+
+resetEqBtn.addEventListener('click', () => {
+  spectrumAnalyser?.setEqState(defaultEqBands())
+  saveCurrentSettings()
 })
 
 function activateRegion(id) {
