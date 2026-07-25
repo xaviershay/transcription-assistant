@@ -21,3 +21,17 @@ export function computeNoteBuckets(freqData, binHz, minFreq, maxFreq) {
 
   return buckets
 }
+
+export function computePeakMidis(buckets, threshold) {
+  const peaks = []
+  for (let i = 0; i < buckets.length; i++) {
+    const b = buckets[i]
+    if (b.value < threshold) continue
+    const prev = buckets[i - 1]
+    const next = buckets[i + 1]
+    if (prev && b.value < prev.value) continue
+    if (next && b.value < next.value) continue
+    peaks.push(b.midi)
+  }
+  return peaks
+}

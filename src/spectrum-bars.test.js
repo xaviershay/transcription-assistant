@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { computeNoteBuckets } from './spectrum-bars.js'
+import { computeNoteBuckets, computePeakMidis } from './spectrum-bars.js'
 import { frequencyFromMidi } from './notes.js'
 
 const SAMPLE_RATE = 44100
@@ -59,5 +59,36 @@ describe('computeNoteBuckets', () => {
     const midis = buckets.map((b) => b.midi)
     const sorted = [...midis].sort((a, b) => a - b)
     expect(midis).toEqual(sorted)
+  })
+})
+
+function bucket(midi, value) {
+  return { midi, lowFreq: 0, highFreq: 0, value }
+}
+
+describe('computePeakMidis', () => {
+  it('detects an isolated loud bucket as a peak', () => {
+    const buckets = [bucket(60, 10), bucket(61, 50), bucket(62, 10)]
+    expect(computePeakMidis(buckets, 40)).toEqual([61])
+  })
+
+  it('does not detect a locally-highest bucket below the threshold', () => {
+    const buckets = [bucket(60, 5), bucket(61, 20), bucket(62, 5)]
+    expect(computePeakMidis(buckets, 40)).toEqual([])
+  })
+
+  it('does not detect a bucket that is lower than a neighbor', () => {
+    const buckets = [bucket(60, 10), bucket(61, 50), bucket(62, 80)]
+    expect(computePeakMidis(buckets, 40)).toEqual([62])
+  })
+
+  it('handles the first bucket in the array as a potential peak', () => {
+    const buckets = [bucket(60, 80), bucket(61, 50), bucket(62, 10)]
+    expect(computePeakMidis(buckets, 40)).toEqual([60])
+  })
+
+  it('counts a plateau of equal-value adjacent buckets as multiple peaks', () => {
+    const buckets = [bucket(60, 10), bucket(61, 50), bucket(62, 50), bucket(63, 10)]
+    expect(computePeakMidis(buckets, 40)).toEqual([61, 62])
   })
 })
