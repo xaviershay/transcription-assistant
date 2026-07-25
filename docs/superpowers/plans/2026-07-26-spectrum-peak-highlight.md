@@ -251,3 +251,19 @@ If false-positive harmonics prove distracting in practice, a follow-up
 could add harmonic suppression (e.g. discount a bucket's value if a much
 stronger bucket exists at half its frequency) before peak-picking — not
 part of this plan.
+
+## Post-implementation adjustments (from live testing)
+
+Tuned after trying it against real audio:
+
+- `PEAK_THRESHOLD` raised from the planned 40 to 90 — the original value
+  flagged too many quiet/background notes as peaks.
+- `PEAK_COLOR` changed from yellow (`#ffe14f`) to a darker green
+  (`#388e3c`), through an intermediate brighter green (`#4caf50`).
+- Highlight style changed from outlined bar + bold bottom-axis label to a
+  **fully green-filled bar** with the note name drawn **directly above the
+  bar itself** (not the bottom axis). The bottom-axis bold-label approach
+  didn't work in practice — at typical zoom levels `labelStep()` skips
+  most notes' bottom labels, so a peak's label was frequently not drawn at
+  all regardless of bold styling. Drawing the name unconditionally above
+  each peak bar guarantees it's visible regardless of label density.

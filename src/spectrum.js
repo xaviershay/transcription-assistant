@@ -1,5 +1,5 @@
-import { frequencyToNoteName, midiFromFrequency } from './notes.js'
-import { computeNoteBuckets } from './spectrum-bars.js'
+import { frequencyToNoteName, midiFromFrequency, noteNameFromMidi } from './notes.js'
+import { computeNoteBuckets, computePeakMidis } from './spectrum-bars.js'
 import {
   gainToY,
   yToGain,
@@ -22,6 +22,8 @@ const BAR_COLOR = '#4f6df5'
 const EQ_COLOR = '#f5a64f'
 const EQ_BAND_COLORS = ['#f5a64f', '#4fc3f5', '#f54f8c']
 const EQ_HIT_RADIUS = 8
+const PEAK_COLOR = '#388e3c'
+const PEAK_THRESHOLD = 90
 
 export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) {
   function syncCanvasWidth() {
@@ -214,13 +216,22 @@ export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) 
     ctx.fillStyle = BACKGROUND_COLOR
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
-    ctx.fillStyle = BAR_COLOR
     const buckets = computeNoteBuckets(freqData, binHz, viewMinFreq, viewMaxFreq)
+    const peakMidis = new Set(computePeakMidis(buckets, PEAK_THRESHOLD))
     for (const bucket of buckets) {
       const x1 = xForFreq(bucket.lowFreq)
       const x2 = xForFreq(bucket.highFreq)
       const barHeight = (bucket.value / 255) * canvas.height
-      ctx.fillRect(x1, canvas.height - barHeight, Math.max(0, x2 - x1 - 1), barHeight)
+      const barWidth = Math.max(0, x2 - x1 - 1)
+      const isPeak = peakMidis.has(bucket.midi)
+      ctx.fillStyle = isPeak ? PEAK_COLOR : BAR_COLOR
+      ctx.fillRect(x1, canvas.height - barHeight, barWidth, barHeight)
+      if (isPeak) {
+        ctx.font = 'bold 12px sans-serif'
+        ctx.textAlign = 'center'
+        const labelY = Math.max(12, canvas.height - barHeight - 4)
+        ctx.fillText(noteNameFromMidi(bucket.midi), (x1 + x2) / 2, labelY)
+      }
     }
 
     ctx.fillStyle = LABEL_COLOR
