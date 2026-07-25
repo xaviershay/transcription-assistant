@@ -1,4 +1,5 @@
 import { frequencyToNoteName, midiFromFrequency } from './notes.js'
+import { computeNoteBuckets } from './spectrum-bars.js'
 import {
   gainToY,
   yToGain,
@@ -214,16 +215,17 @@ export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) 
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
     ctx.fillStyle = BAR_COLOR
-    for (let i = 0; i < freqData.length; i++) {
-      const freq = i * binHz
-      if (freq < viewMinFreq || freq > viewMaxFreq) continue
-      const x = xForFreq(freq)
-      const barHeight = (freqData[i] / 255) * canvas.height
-      ctx.fillRect(x, canvas.height - barHeight, 2, barHeight)
+    const buckets = computeNoteBuckets(freqData, binHz, viewMinFreq, viewMaxFreq)
+    for (const bucket of buckets) {
+      const x1 = xForFreq(bucket.lowFreq)
+      const x2 = xForFreq(bucket.highFreq)
+      const barHeight = (bucket.value / 255) * canvas.height
+      ctx.fillRect(x1, canvas.height - barHeight, Math.max(0, x2 - x1 - 1), barHeight)
     }
 
     ctx.fillStyle = LABEL_COLOR
     ctx.font = '13px sans-serif'
+    ctx.textAlign = 'center'
     const step = labelStep()
     const minMidi = Math.ceil(midiFromFrequency(viewMinFreq))
     const maxMidi = Math.floor(midiFromFrequency(viewMaxFreq))
