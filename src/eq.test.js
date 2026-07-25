@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { MIN_GAIN, MAX_GAIN, clampGain, gainToY, yToGain } from './eq.js'
 import { MIN_Q, MAX_Q, DEFAULT_Q, accumulatorForQ, qForAccumulator, updateQAccumulator } from './eq.js'
 import { peakingResponseDb } from './eq.js'
+import { isNearDot } from './eq.js'
 
 describe('clampGain', () => {
   it('passes through values within range', () => {
@@ -134,5 +135,27 @@ describe('peakingResponseDb', () => {
     const narrow = peakingResponseDb(2000, 1000, 12, 8, 44100)
     const wide = peakingResponseDb(2000, 1000, 12, 1, 44100)
     expect(narrow).toBeLessThan(wide)
+  })
+})
+
+describe('isNearDot', () => {
+  it('is true exactly at the dot', () => {
+    expect(isNearDot(100, 50, 100, 50, 8)).toBe(true)
+  })
+
+  it('is true within the hit radius', () => {
+    expect(isNearDot(105, 50, 100, 50, 8)).toBe(true)
+  })
+
+  it('is true exactly on the hit radius boundary', () => {
+    expect(isNearDot(108, 50, 100, 50, 8)).toBe(true)
+  })
+
+  it('is false outside the hit radius', () => {
+    expect(isNearDot(120, 50, 100, 50, 8)).toBe(false)
+  })
+
+  it('accounts for both x and y distance', () => {
+    expect(isNearDot(106, 106, 100, 100, 8)).toBe(false)
   })
 })

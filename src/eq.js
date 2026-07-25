@@ -64,3 +64,9 @@ export function peakingResponseDb(freq, centerFreq, gainDb, q, sampleRate) {
 
   return 20 * Math.log10(numMag / denMag)
 }
+
+export function isNearDot(cursorX, cursorY, dotX, dotY, hitRadius) {
+  const dx = cursorX - dotX
+  const dy = cursorY - dotY
+  return dx * dx + dy * dy <= hitRadius * hitRadius
+}
