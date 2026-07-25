@@ -1,5 +1,5 @@
 import { frequencyToNoteName, midiFromFrequency } from './notes.js'
-import { gainToY, peakingResponseDb } from './eq.js'
+import { gainToY, yToGain, peakingResponseDb, isNearDot } from './eq.js'
 
 const MIN_FREQ = 27.5 // A0
 const MAX_FREQ = 4186 // C8
@@ -10,6 +10,7 @@ const BACKGROUND_COLOR = '#121212'
 const LABEL_COLOR = '#f0f0f0'
 const BAR_COLOR = '#4f6df5'
 const EQ_COLOR = '#f5a64f'
+const EQ_HIT_RADIUS = 8
 
 export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) {
   function syncCanvasWidth() {
@@ -122,6 +123,42 @@ export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) 
     viewMinFreq = Math.pow(2, newLogMin)
     viewMaxFreq = Math.pow(2, newLogMax)
   }
+
+  let draggingEq = false
+
+  function dotPosition() {
+    return { x: xForFreq(filter.frequency.value), y: gainToY(filter.gain.value, canvas.height) }
+  }
+
+  function eventCanvasPos(e) {
+    const rect = canvas.getBoundingClientRect()
+    return {
+      x: ((e.clientX - rect.left) / rect.width) * canvas.width,
+      y: ((e.clientY - rect.top) / rect.height) * canvas.height,
+    }
+  }
+
+  canvas.addEventListener('mousedown', (e) => {
+    const { x, y } = eventCanvasPos(e)
+    const dot = dotPosition()
+    if (isNearDot(x, y, dot.x, dot.y, EQ_HIT_RADIUS)) {
+      draggingEq = true
+    }
+  })
+
+  window.addEventListener('mousemove', (e) => {
+    if (!draggingEq) return
+    const { x, y } = eventCanvasPos(e)
+    const clampedX = Math.min(canvas.width, Math.max(0, x))
+    filter.frequency.value = freqForX(clampedX)
+    filter.gain.value = yToGain(y, canvas.height)
+    onEqChange?.()
+    if (!animationFrame) render()
+  })
+
+  window.addEventListener('mouseup', () => {
+    draggingEq = false
+  })
 
   canvas.addEventListener(
     'wheel',
