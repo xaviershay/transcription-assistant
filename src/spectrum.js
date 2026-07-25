@@ -9,7 +9,7 @@ const BACKGROUND_COLOR = '#121212'
 const LABEL_COLOR = '#f0f0f0'
 const BAR_COLOR = '#4f6df5'
 
-export function createSpectrumAnalyser(wavesurfer, canvas) {
+export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) {
   function syncCanvasWidth() {
     const width = Math.round(canvas.getBoundingClientRect().width)
     if (width > 0 && canvas.width !== width) {
@@ -21,9 +21,15 @@ export function createSpectrumAnalyser(wavesurfer, canvas) {
 
   const audioCtx = new AudioContext()
   const source = audioCtx.createMediaElementSource(wavesurfer.getMediaElement())
+  const filter = audioCtx.createBiquadFilter()
+  filter.type = 'peaking'
+  filter.frequency.value = 1000
+  filter.gain.value = 0
+  filter.Q.value = 1
   const analyser = audioCtx.createAnalyser()
   analyser.fftSize = 8192
-  source.connect(analyser)
+  source.connect(filter)
+  filter.connect(analyser)
   analyser.connect(audioCtx.destination)
 
   const freqData = new Uint8Array(analyser.frequencyBinCount)
@@ -186,7 +192,17 @@ export function createSpectrumAnalyser(wavesurfer, canvas) {
     audioCtx.suspend()
   }
 
+  function getEqState() {
+    return { freq: filter.frequency.value, gain: filter.gain.value, q: filter.Q.value }
+  }
+
+  function setEqState({ freq, gain, q }) {
+    filter.frequency.value = freq
+    filter.gain.value = gain
+    filter.Q.value = q
+  }
+
   render()
 
-  return { start, stop }
+  return { start, stop, getEqState, setEqState }
 }
