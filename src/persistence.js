@@ -11,6 +11,8 @@ function storageKey(hash) {
   return `ear-transcriber:settings:${hash}`
 }
 
+const DEFAULT_EQ = { eqFreq: 1000, eqGain: 0, eqQ: 1 }
+
 export function loadSettings(storage, hash) {
   const raw = storage.getItem(storageKey(hash))
   if (!raw) return null
@@ -24,7 +26,12 @@ export function loadSettings(storage, hash) {
     ) {
       return null
     }
-    return parsed
+    return {
+      ...parsed,
+      eqFreq: typeof parsed.eqFreq === 'number' ? parsed.eqFreq : DEFAULT_EQ.eqFreq,
+      eqGain: typeof parsed.eqGain === 'number' ? parsed.eqGain : DEFAULT_EQ.eqGain,
+      eqQ: typeof parsed.eqQ === 'number' ? parsed.eqQ : DEFAULT_EQ.eqQ,
+    }
   } catch {
     return null
   }

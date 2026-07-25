@@ -32,9 +32,26 @@ describe('computeFileHash', () => {
 describe('loadSettings / saveSettings', () => {
   it('round-trips settings through storage', () => {
     const storage = createMemoryStorage()
-    const settings = { bpm: 140, subdivisions: 3, offset: 1.25, volume: 0.8 }
+    const settings = { bpm: 140, subdivisions: 3, offset: 1.25, volume: 0.8, eqFreq: 500, eqGain: -3, eqQ: 2 }
     saveSettings(storage, 'abc123', settings)
     expect(loadSettings(storage, 'abc123')).toEqual(settings)
+  })
+
+  it('defaults EQ fields for settings saved before the EQ feature existed', () => {
+    const storage = createMemoryStorage()
+    storage.setItem(
+      'ear-transcriber:settings:legacy',
+      JSON.stringify({ bpm: 100, subdivisions: 4, offset: 0, volume: 1 }),
+    )
+    expect(loadSettings(storage, 'legacy')).toEqual({
+      bpm: 100,
+      subdivisions: 4,
+      offset: 0,
+      volume: 1,
+      eqFreq: 1000,
+      eqGain: 0,
+      eqQ: 1,
+    })
   })
 
   it('returns null for a hash with no saved settings', () => {
