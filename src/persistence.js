@@ -1,3 +1,5 @@
+import { defaultEqBands } from './eq.js'
+
 export function bufferToHex(buffer) {
   return [...new Uint8Array(buffer)].map((b) => b.toString(16).padStart(2, '0')).join('')
 }
@@ -11,7 +13,26 @@ function storageKey(hash) {
   return `ear-transcriber:settings:${hash}`
 }
 
-const DEFAULT_EQ = { eqFreq: 1000, eqGain: 0, eqQ: 1 }
+function isValidBand(band) {
+  return (
+    band !== null &&
+    typeof band === 'object' &&
+    typeof band.freq === 'number' &&
+    typeof band.gain === 'number' &&
+    typeof band.q === 'number'
+  )
+}
+
+function normalizeEqBands(parsed) {
+  if (Array.isArray(parsed.eqBands) && parsed.eqBands.length === 3 && parsed.eqBands.every(isValidBand)) {
+    return parsed.eqBands
+  }
+  if (typeof parsed.eqFreq === 'number' && typeof parsed.eqGain === 'number' && typeof parsed.eqQ === 'number') {
+    const [, band1, band2] = defaultEqBands()
+    return [{ freq: parsed.eqFreq, gain: parsed.eqGain, q: parsed.eqQ }, band1, band2]
+  }
+  return defaultEqBands()
+}
 
 export function loadSettings(storage, hash) {
   const raw = storage.getItem(storageKey(hash))
@@ -27,10 +48,11 @@ export function loadSettings(storage, hash) {
       return null
     }
     return {
-      ...parsed,
-      eqFreq: typeof parsed.eqFreq === 'number' ? parsed.eqFreq : DEFAULT_EQ.eqFreq,
-      eqGain: typeof parsed.eqGain === 'number' ? parsed.eqGain : DEFAULT_EQ.eqGain,
-      eqQ: typeof parsed.eqQ === 'number' ? parsed.eqQ : DEFAULT_EQ.eqQ,
+      bpm: parsed.bpm,
+      subdivisions: parsed.subdivisions,
+      offset: parsed.offset,
+      volume: parsed.volume,
+      eqBands: normalizeEqBands(parsed),
     }
   } catch {
     return null

@@ -32,26 +32,19 @@ describe('computeFileHash', () => {
 describe('loadSettings / saveSettings', () => {
   it('round-trips settings through storage', () => {
     const storage = createMemoryStorage()
-    const settings = { bpm: 140, subdivisions: 3, offset: 1.25, volume: 0.8, eqFreq: 500, eqGain: -3, eqQ: 2 }
+    const settings = {
+      bpm: 140,
+      subdivisions: 3,
+      offset: 1.25,
+      volume: 0.8,
+      eqBands: [
+        { freq: 100, gain: 3, q: 1.5 },
+        { freq: 900, gain: -2, q: 2 },
+        { freq: 5000, gain: 6, q: 0.8 },
+      ],
+    }
     saveSettings(storage, 'abc123', settings)
     expect(loadSettings(storage, 'abc123')).toEqual(settings)
-  })
-
-  it('defaults EQ fields for settings saved before the EQ feature existed', () => {
-    const storage = createMemoryStorage()
-    storage.setItem(
-      'ear-transcriber:settings:legacy',
-      JSON.stringify({ bpm: 100, subdivisions: 4, offset: 0, volume: 1 }),
-    )
-    expect(loadSettings(storage, 'legacy')).toEqual({
-      bpm: 100,
-      subdivisions: 4,
-      offset: 0,
-      volume: 1,
-      eqFreq: 1000,
-      eqGain: 0,
-      eqQ: 1,
-    })
   })
 
   it('returns null for a hash with no saved settings', () => {
@@ -69,5 +62,43 @@ describe('loadSettings / saveSettings', () => {
     const storage = createMemoryStorage()
     storage.setItem('ear-transcriber:settings:partial', JSON.stringify({ bpm: 120 }))
     expect(loadSettings(storage, 'partial')).toBeNull()
+  })
+
+  it('defaults all 3 EQ bands for settings saved before the EQ feature existed', () => {
+    const storage = createMemoryStorage()
+    storage.setItem(
+      'ear-transcriber:settings:pre-eq',
+      JSON.stringify({ bpm: 100, subdivisions: 4, offset: 0, volume: 1 }),
+    )
+    expect(loadSettings(storage, 'pre-eq')).toEqual({
+      bpm: 100,
+      subdivisions: 4,
+      offset: 0,
+      volume: 1,
+      eqBands: [
+        { freq: 200, gain: 0, q: 1 },
+        { freq: 1000, gain: 0, q: 1 },
+        { freq: 3000, gain: 0, q: 1 },
+      ],
+    })
+  })
+
+  it('migrates single-band legacy EQ data into band 0, defaulting bands 1 and 2', () => {
+    const storage = createMemoryStorage()
+    storage.setItem(
+      'ear-transcriber:settings:single-band',
+      JSON.stringify({ bpm: 100, subdivisions: 4, offset: 0, volume: 1, eqFreq: 500, eqGain: -6, eqQ: 3 }),
+    )
+    expect(loadSettings(storage, 'single-band')).toEqual({
+      bpm: 100,
+      subdivisions: 4,
+      offset: 0,
+      volume: 1,
+      eqBands: [
+        { freq: 500, gain: -6, q: 3 },
+        { freq: 1000, gain: 0, q: 1 },
+        { freq: 3000, gain: 0, q: 1 },
+      ],
+    })
   })
 })
