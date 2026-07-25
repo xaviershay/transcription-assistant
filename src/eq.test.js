@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { MIN_GAIN, MAX_GAIN, clampGain, gainToY, yToGain } from './eq.js'
 import { MIN_Q, MAX_Q, DEFAULT_Q, accumulatorForQ, qForAccumulator, updateQAccumulator } from './eq.js'
+import { peakingResponseDb } from './eq.js'
 
 describe('clampGain', () => {
   it('passes through values within range', () => {
@@ -103,5 +104,35 @@ describe('updateQAccumulator', () => {
     const updated = updateQAccumulator(0, 100)
     expect(updated).toBe(0)
     expect(qForAccumulator(updated)).toBeCloseTo(MIN_Q, 5)
+  })
+})
+
+describe('peakingResponseDb', () => {
+  it('returns the set gain exactly at the center frequency', () => {
+    expect(peakingResponseDb(1000, 1000, 6, 1, 44100)).toBeCloseTo(6, 1)
+  })
+
+  it('returns the set (negative) gain exactly at the center frequency', () => {
+    expect(peakingResponseDb(1000, 1000, -9, 2, 44100)).toBeCloseTo(-9, 1)
+  })
+
+  it('approaches 0 dB far below the center frequency', () => {
+    expect(Math.abs(peakingResponseDb(50, 1000, 6, 1, 44100))).toBeLessThan(1.5)
+  })
+
+  it('approaches 0 dB far above the center frequency', () => {
+    expect(Math.abs(peakingResponseDb(8000, 1000, 6, 1, 44100))).toBeLessThan(1.5)
+  })
+
+  it('is symmetric in dB around the center for a given Q (boost vs matching cut have opposite sign at center)', () => {
+    const boost = peakingResponseDb(1000, 1000, 6, 1, 44100)
+    const cut = peakingResponseDb(1000, 1000, -6, 1, 44100)
+    expect(boost).toBeCloseTo(-cut, 1)
+  })
+
+  it('a higher Q narrows the response (less boost one octave away)', () => {
+    const narrow = peakingResponseDb(2000, 1000, 12, 8, 44100)
+    const wide = peakingResponseDb(2000, 1000, 12, 1, 44100)
+    expect(narrow).toBeLessThan(wide)
   })
 })

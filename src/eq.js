@@ -34,3 +34,33 @@ export function qForAccumulator(accumulator) {
 export function updateQAccumulator(accumulator, deltaY) {
   return Math.min(MAX_Q_ACCUMULATOR, Math.max(0, accumulator - deltaY))
 }
+
+export function peakingResponseDb(freq, centerFreq, gainDb, q, sampleRate) {
+  const A = Math.pow(10, gainDb / 40)
+  const w0 = (2 * Math.PI * centerFreq) / sampleRate
+  const alpha = Math.sin(w0) / (2 * q)
+  const cosw0 = Math.cos(w0)
+
+  const b0 = 1 + alpha * A
+  const b1 = -2 * cosw0
+  const b2 = 1 - alpha * A
+  const a0 = 1 + alpha / A
+  const a1 = -2 * cosw0
+  const a2 = 1 - alpha / A
+
+  const w = (2 * Math.PI * freq) / sampleRate
+  const cosW = Math.cos(w)
+  const sinW = Math.sin(w)
+  const cos2W = Math.cos(2 * w)
+  const sin2W = Math.sin(2 * w)
+
+  const numRe = b0 + b1 * cosW + b2 * cos2W
+  const numIm = -(b1 * sinW + b2 * sin2W)
+  const denRe = a0 + a1 * cosW + a2 * cos2W
+  const denIm = -(a1 * sinW + a2 * sin2W)
+
+  const numMag = Math.sqrt(numRe * numRe + numIm * numIm)
+  const denMag = Math.sqrt(denRe * denRe + denIm * denIm)
+
+  return 20 * Math.log10(numMag / denMag)
+}
