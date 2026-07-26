@@ -72,6 +72,68 @@ export function peakingResponseDb(freq, centerFreq, gainDb, q, sampleRate) {
   return 20 * Math.log10(numMag / denMag)
 }
 
+export function lowShelfResponseDb(freq, cornerFreq, gainDb, q, sampleRate) {
+  const A = Math.pow(10, gainDb / 40)
+  const w0 = (2 * Math.PI * cornerFreq) / sampleRate
+  const sqrtA = Math.sqrt(A)
+  const alpha = (Math.sin(w0) / 2) * Math.sqrt((A + 1 / A) * (1 / q - 1) + 2)
+  const cosw0 = Math.cos(w0)
+
+  const b0 = A * (A + 1 - (A - 1) * cosw0 + 2 * sqrtA * alpha)
+  const b1 = 2 * A * (A - 1 - (A + 1) * cosw0)
+  const b2 = A * (A + 1 - (A - 1) * cosw0 - 2 * sqrtA * alpha)
+  const a0 = A + 1 + (A - 1) * cosw0 + 2 * sqrtA * alpha
+  const a1 = -2 * (A - 1 + (A + 1) * cosw0)
+  const a2 = A + 1 + (A - 1) * cosw0 - 2 * sqrtA * alpha
+
+  const w = (2 * Math.PI * freq) / sampleRate
+  const cosW = Math.cos(w)
+  const sinW = Math.sin(w)
+  const cos2W = Math.cos(2 * w)
+  const sin2W = Math.sin(2 * w)
+
+  const numRe = b0 + b1 * cosW + b2 * cos2W
+  const numIm = -(b1 * sinW + b2 * sin2W)
+  const denRe = a0 + a1 * cosW + a2 * cos2W
+  const denIm = -(a1 * sinW + a2 * sin2W)
+
+  const numMag = Math.sqrt(numRe * numRe + numIm * numIm)
+  const denMag = Math.sqrt(denRe * denRe + denIm * denIm)
+
+  return 20 * Math.log10(numMag / denMag)
+}
+
+export function highShelfResponseDb(freq, cornerFreq, gainDb, q, sampleRate) {
+  const A = Math.pow(10, gainDb / 40)
+  const w0 = (2 * Math.PI * cornerFreq) / sampleRate
+  const sqrtA = Math.sqrt(A)
+  const alpha = (Math.sin(w0) / 2) * Math.sqrt((A + 1 / A) * (1 / q - 1) + 2)
+  const cosw0 = Math.cos(w0)
+
+  const b0 = A * (A + 1 + (A - 1) * cosw0 + 2 * sqrtA * alpha)
+  const b1 = -2 * A * (A - 1 + (A + 1) * cosw0)
+  const b2 = A * (A + 1 + (A - 1) * cosw0 - 2 * sqrtA * alpha)
+  const a0 = A + 1 - (A - 1) * cosw0 + 2 * sqrtA * alpha
+  const a1 = 2 * (A - 1 - (A + 1) * cosw0)
+  const a2 = A + 1 - (A - 1) * cosw0 - 2 * sqrtA * alpha
+
+  const w = (2 * Math.PI * freq) / sampleRate
+  const cosW = Math.cos(w)
+  const sinW = Math.sin(w)
+  const cos2W = Math.cos(2 * w)
+  const sin2W = Math.sin(2 * w)
+
+  const numRe = b0 + b1 * cosW + b2 * cos2W
+  const numIm = -(b1 * sinW + b2 * sin2W)
+  const denRe = a0 + a1 * cosW + a2 * cos2W
+  const denIm = -(a1 * sinW + a2 * sin2W)
+
+  const numMag = Math.sqrt(numRe * numRe + numIm * numIm)
+  const denMag = Math.sqrt(denRe * denRe + denIm * denIm)
+
+  return 20 * Math.log10(numMag / denMag)
+}
+
 export function isNearDot(cursorX, cursorY, dotX, dotY, hitRadius) {
   const dx = cursorX - dotX
   const dy = cursorY - dotY

@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { MIN_GAIN, MAX_GAIN, clampGain, gainToY, yToGain } from './eq.js'
 import { MIN_Q, MAX_Q, DEFAULT_Q, accumulatorForQ, qForAccumulator, updateQAccumulator, MIN_SHELF_Q, MAX_SHELF_Q } from './eq.js'
-import { peakingResponseDb } from './eq.js'
+import { peakingResponseDb, lowShelfResponseDb, highShelfResponseDb } from './eq.js'
 import { isNearDot } from './eq.js'
 import { defaultEqBands } from './eq.js'
 
@@ -206,5 +206,57 @@ describe('defaultEqBands', () => {
     expect(a[0]).not.toBe(b[0])
     a[0].gain = 12
     expect(b[0].gain).toBe(0)
+  })
+})
+
+describe('lowShelfResponseDb', () => {
+  it('returns exactly half the set gain at the corner frequency (boost)', () => {
+    expect(lowShelfResponseDb(200, 200, 12, 1, 44100)).toBeCloseTo(6, 1)
+  })
+
+  it('returns exactly half the set gain at the corner frequency (cut)', () => {
+    expect(lowShelfResponseDb(200, 200, -12, 1, 44100)).toBeCloseTo(-6, 1)
+  })
+
+  it('approaches the full set gain deep below the corner frequency', () => {
+    expect(lowShelfResponseDb(10, 200, 12, 1, 44100)).toBeCloseTo(12, 1)
+  })
+
+  it('approaches 0 dB well above the corner frequency', () => {
+    expect(lowShelfResponseDb(5000, 200, 12, 1, 44100)).toBeCloseTo(0, 1)
+  })
+
+  it('produces finite values across the full Q range crossed with the full gain range', () => {
+    for (const q of [0.1, 0.5, 1, 1.5, MAX_SHELF_Q]) {
+      for (const gain of [-24, -12, 0, 12, 24]) {
+        expect(Number.isFinite(lowShelfResponseDb(200, 200, gain, q, 44100))).toBe(true)
+      }
+    }
+  })
+})
+
+describe('highShelfResponseDb', () => {
+  it('returns exactly half the set gain at the corner frequency (boost)', () => {
+    expect(highShelfResponseDb(3000, 3000, 12, 1, 44100)).toBeCloseTo(6, 1)
+  })
+
+  it('returns exactly half the set gain at the corner frequency (cut)', () => {
+    expect(highShelfResponseDb(3000, 3000, -12, 1, 44100)).toBeCloseTo(-6, 1)
+  })
+
+  it('approaches the full set gain well above the corner frequency', () => {
+    expect(highShelfResponseDb(20000, 3000, 12, 1, 44100)).toBeCloseTo(12, 1)
+  })
+
+  it('approaches 0 dB deep below the corner frequency', () => {
+    expect(highShelfResponseDb(50, 3000, 12, 1, 44100)).toBeCloseTo(0, 1)
+  })
+
+  it('produces finite values across the full Q range crossed with the full gain range', () => {
+    for (const q of [0.1, 0.5, 1, 1.5, MAX_SHELF_Q]) {
+      for (const gain of [-24, -12, 0, 12, 24]) {
+        expect(Number.isFinite(highShelfResponseDb(3000, 3000, gain, q, 44100))).toBe(true)
+      }
+    }
   })
 })
