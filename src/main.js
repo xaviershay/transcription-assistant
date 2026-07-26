@@ -220,6 +220,17 @@ const activeLabel = document.getElementById('active-label')
 const sensitivitySlider = document.getElementById('onset-sensitivity')
 const deleteAllBtn = document.getElementById('delete-all-selections')
 
+function resetOnDoubleClick(slider) {
+  slider.addEventListener('dblclick', () => {
+    slider.value = slider.defaultValue
+    slider.dispatchEvent(new Event('input'))
+  })
+}
+
+for (const slider of [tempoSlider, subdivisionsSlider, speedInput, volumeInput, sensitivitySlider]) {
+  resetOnDoubleClick(slider)
+}
+
 let activeRegionId = null
 
 let previewingRegionId = null
