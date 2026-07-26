@@ -3,6 +3,7 @@ import { computeNoteBuckets, computePeakMidis } from './spectrum-bars.js'
 import {
   gainToY,
   yToGain,
+  clampGain,
   peakingResponseDb,
   lowShelfResponseDb,
   highShelfResponseDb,
@@ -11,10 +12,6 @@ import {
   updateQAccumulator,
   accumulatorForQ,
   defaultEqBands,
-  MIN_Q,
-  MAX_Q,
-  MIN_SHELF_Q,
-  MAX_SHELF_Q,
 } from './eq.js'
 
 const MIN_FREQ = 27.5 // A0
@@ -32,18 +29,14 @@ const PEAK_COLOR = '#388e3c'
 const PEAK_THRESHOLD = 90
 
 const BAND_TYPES = ['lowshelf', 'peaking', 'highshelf']
-const BAND_Q_RANGES = [
-  [MIN_SHELF_Q, MAX_SHELF_Q],
-  [MIN_Q, MAX_Q],
-  [MIN_SHELF_Q, MAX_SHELF_Q],
-]
+const SHELF_Q = 1
 
 function responseDbForBand(index, freq, filter, sampleRate) {
   if (BAND_TYPES[index] === 'lowshelf') {
-    return lowShelfResponseDb(freq, filter.frequency.value, filter.gain.value, filter.Q.value, sampleRate)
+    return lowShelfResponseDb(freq, filter.frequency.value, filter.gain.value, SHELF_Q, sampleRate)
   }
   if (BAND_TYPES[index] === 'highshelf') {
-    return highShelfResponseDb(freq, filter.frequency.value, filter.gain.value, filter.Q.value, sampleRate)
+    return highShelfResponseDb(freq, filter.frequency.value, filter.gain.value, SHELF_Q, sampleRate)
   }
   return peakingResponseDb(freq, filter.frequency.value, filter.gain.value, filter.Q.value, sampleRate)
 }
@@ -166,7 +159,7 @@ export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) 
   }
 
   let draggingBandIndex = null
-  let qAccumulators = filters.map((f, i) => accumulatorForQ(f.Q.value, ...BAND_Q_RANGES[i]))
+  let qAccumulators = filters.map((f) => accumulatorForQ(f.Q.value))
 
   function dotPosition(index) {
     return { x: xForFreq(filters[index].frequency.value), y: gainToY(filters[index].gain.value, canvas.height) }
@@ -213,10 +206,9 @@ export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) 
       e.preventDefault()
       const { x: cursorX, y: cursorY } = eventCanvasPos(e)
       const hoveredIndex = findNearDotIndex(cursorX, cursorY)
-      if (hoveredIndex !== null) {
-        const [minQ, maxQ] = BAND_Q_RANGES[hoveredIndex]
-        qAccumulators[hoveredIndex] = updateQAccumulator(qAccumulators[hoveredIndex], e.deltaY, minQ, maxQ)
-        filters[hoveredIndex].Q.value = qForAccumulator(qAccumulators[hoveredIndex], minQ, maxQ)
+      if (hoveredIndex !== null && BAND_TYPES[hoveredIndex] === 'peaking') {
+        qAccumulators[hoveredIndex] = updateQAccumulator(qAccumulators[hoveredIndex], e.deltaY)
+        filters[hoveredIndex].Q.value = qForAccumulator(qAccumulators[hoveredIndex])
         onEqChange?.()
       } else if (e.shiftKey) {
         pan(e.deltaY > 0 ? 1 : -1)
@@ -324,9 +316,9 @@ export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) 
   function setEqState(bands) {
     bands.forEach((band, i) => {
       filters[i].frequency.value = band.freq
-      filters[i].gain.value = band.gain
-      filters[i].Q.value = band.q
-      qAccumulators[i] = accumulatorForQ(band.q, ...BAND_Q_RANGES[i])
+      filters[i].gain.value = clampGain(band.gain)
+      qAccumulators[i] = accumulatorForQ(band.q)
+      filters[i].Q.value = qForAccumulator(qAccumulators[i])
     })
   }
 

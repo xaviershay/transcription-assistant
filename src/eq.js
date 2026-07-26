@@ -17,29 +17,22 @@ export function yToGain(y, canvasHeight) {
 
 export const MIN_Q = 0.1
 export const MAX_Q = 24
-export const MIN_SHELF_Q = 0.1
-export const MAX_SHELF_Q = 1.8
 export const DEFAULT_Q = 1
 const Q_ZOOM_FACTOR = 1.15
+const MAX_Q_ACCUMULATOR = (100 * Math.log(MAX_Q / MIN_Q)) / Math.log(Q_ZOOM_FACTOR)
 
-function maxAccumulatorFor(minQ, maxQ) {
-  return (100 * Math.log(maxQ / minQ)) / Math.log(Q_ZOOM_FACTOR)
+export function accumulatorForQ(q) {
+  const clamped = Math.min(MAX_Q, Math.max(MIN_Q, q))
+  return (100 * Math.log(clamped / MIN_Q)) / Math.log(Q_ZOOM_FACTOR)
 }
 
-export function accumulatorForQ(q, minQ = MIN_Q, maxQ = MAX_Q) {
-  const clamped = Math.min(maxQ, Math.max(minQ, q))
-  return (100 * Math.log(clamped / minQ)) / Math.log(Q_ZOOM_FACTOR)
+export function qForAccumulator(accumulator) {
+  const clamped = Math.min(MAX_Q_ACCUMULATOR, Math.max(0, accumulator))
+  return MIN_Q * Math.pow(Q_ZOOM_FACTOR, clamped / 100)
 }
 
-export function qForAccumulator(accumulator, minQ = MIN_Q, maxQ = MAX_Q) {
-  const maxAccumulator = maxAccumulatorFor(minQ, maxQ)
-  const clamped = Math.min(maxAccumulator, Math.max(0, accumulator))
-  return minQ * Math.pow(Q_ZOOM_FACTOR, clamped / 100)
-}
-
-export function updateQAccumulator(accumulator, deltaY, minQ = MIN_Q, maxQ = MAX_Q) {
-  const maxAccumulator = maxAccumulatorFor(minQ, maxQ)
-  return Math.min(maxAccumulator, Math.max(0, accumulator - deltaY))
+export function updateQAccumulator(accumulator, deltaY) {
+  return Math.min(MAX_Q_ACCUMULATOR, Math.max(0, accumulator - deltaY))
 }
 
 export function peakingResponseDb(freq, centerFreq, gainDb, q, sampleRate) {
