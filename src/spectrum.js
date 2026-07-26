@@ -4,11 +4,17 @@ import {
   gainToY,
   yToGain,
   peakingResponseDb,
+  lowShelfResponseDb,
+  highShelfResponseDb,
   isNearDot,
   qForAccumulator,
   updateQAccumulator,
   accumulatorForQ,
   defaultEqBands,
+  MIN_Q,
+  MAX_Q,
+  MIN_SHELF_Q,
+  MAX_SHELF_Q,
 } from './eq.js'
 
 const MIN_FREQ = 27.5 // A0
@@ -25,6 +31,23 @@ const EQ_HIT_RADIUS = 8
 const PEAK_COLOR = '#388e3c'
 const PEAK_THRESHOLD = 90
 
+const BAND_TYPES = ['lowshelf', 'peaking', 'highshelf']
+const BAND_Q_RANGES = [
+  [MIN_SHELF_Q, MAX_SHELF_Q],
+  [MIN_Q, MAX_Q],
+  [MIN_SHELF_Q, MAX_SHELF_Q],
+]
+
+function responseDbForBand(index, freq, filter, sampleRate) {
+  if (BAND_TYPES[index] === 'lowshelf') {
+    return lowShelfResponseDb(freq, filter.frequency.value, filter.gain.value, filter.Q.value, sampleRate)
+  }
+  if (BAND_TYPES[index] === 'highshelf') {
+    return highShelfResponseDb(freq, filter.frequency.value, filter.gain.value, filter.Q.value, sampleRate)
+  }
+  return peakingResponseDb(freq, filter.frequency.value, filter.gain.value, filter.Q.value, sampleRate)
+}
+
 export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) {
   function syncCanvasWidth() {
     const width = Math.round(canvas.getBoundingClientRect().width)
@@ -37,9 +60,9 @@ export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) 
 
   const audioCtx = new AudioContext()
   const source = audioCtx.createMediaElementSource(wavesurfer.getMediaElement())
-  const filters = defaultEqBands().map(({ freq, gain, q }) => {
+  const filters = defaultEqBands().map(({ freq, gain, q }, i) => {
     const node = audioCtx.createBiquadFilter()
-    node.type = 'peaking'
+    node.type = BAND_TYPES[i]
     node.frequency.value = freq
     node.gain.value = gain
     node.Q.value = q
@@ -143,7 +166,7 @@ export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) 
   }
 
   let draggingBandIndex = null
-  let qAccumulators = filters.map((f) => accumulatorForQ(f.Q.value))
+  let qAccumulators = filters.map((f, i) => accumulatorForQ(f.Q.value, ...BAND_Q_RANGES[i]))
 
   function dotPosition(index) {
     return { x: xForFreq(filters[index].frequency.value), y: gainToY(filters[index].gain.value, canvas.height) }
@@ -191,8 +214,9 @@ export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) 
       const { x: cursorX, y: cursorY } = eventCanvasPos(e)
       const hoveredIndex = findNearDotIndex(cursorX, cursorY)
       if (hoveredIndex !== null) {
-        qAccumulators[hoveredIndex] = updateQAccumulator(qAccumulators[hoveredIndex], e.deltaY)
-        filters[hoveredIndex].Q.value = qForAccumulator(qAccumulators[hoveredIndex])
+        const [minQ, maxQ] = BAND_Q_RANGES[hoveredIndex]
+        qAccumulators[hoveredIndex] = updateQAccumulator(qAccumulators[hoveredIndex], e.deltaY, minQ, maxQ)
+        filters[hoveredIndex].Q.value = qForAccumulator(qAccumulators[hoveredIndex], minQ, maxQ)
         onEqChange?.()
       } else if (e.shiftKey) {
         pan(e.deltaY > 0 ? 1 : -1)
@@ -252,7 +276,7 @@ export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) 
     for (let x = 0; x <= canvas.width; x += 2) {
       const freq = freqForX(x)
       const responseDb = filters.reduce(
-        (sum, f) => sum + peakingResponseDb(freq, f.frequency.value, f.gain.value, f.Q.value, audioCtx.sampleRate),
+        (sum, f, i) => sum + responseDbForBand(i, freq, f, audioCtx.sampleRate),
         0,
       )
       const y = gainToY(responseDb, canvas.height)
@@ -302,7 +326,7 @@ export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) 
       filters[i].frequency.value = band.freq
       filters[i].gain.value = band.gain
       filters[i].Q.value = band.q
-      qAccumulators[i] = accumulatorForQ(band.q)
+      qAccumulators[i] = accumulatorForQ(band.q, ...BAND_Q_RANGES[i])
     })
   }
 
