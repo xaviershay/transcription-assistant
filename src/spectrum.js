@@ -320,6 +320,7 @@ export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) 
       qAccumulators[i] = accumulatorForQ(band.q)
       filters[i].Q.value = qForAccumulator(qAccumulators[i])
     })
+    if (!animationFrame) render()
   }
 
   render()
