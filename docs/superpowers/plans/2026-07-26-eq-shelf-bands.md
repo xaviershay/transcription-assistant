@@ -520,4 +520,41 @@ git commit -m "Make outer EQ bands low/high shelf filters instead of peaking"
 
 ## Post-plan
 
-None — this plan fully implements the spec.
+None planned — but see the correction below, found by final review after
+all 3 tasks were implemented and individually approved.
+
+## Correction: shelf bands have no adjustable Q (found in final review)
+
+The final whole-branch review — and an independent check against MDN's
+`BiquadFilterNode` docs — found that Web Audio ignores `Q` entirely for
+`lowshelf`/`highshelf` filter types (fixed shelf slope, `S = 1`,
+regardless of the `Q` value set). This invalidated the premise behind
+Task 1 (the min/max-range parameterization) and part of Task 3 (per-band
+Q ranges, wheel-adjust-Q on shelf bands): the drawn curve was using `Q`
+while the real audio never did, diverging by up to ~9dB or going
+off-canvas at extremes. A related bug: `setEqState` wrote persisted `Q`
+to the filter node unclamped, so a value saved back when band 0 was still
+peaking (scrollable to 24) produced `NaN` in the shelf formula on load and
+silently blanked the entire curve.
+
+Fixed in one follow-up commit after the final review:
+
+- `responseDbForBand` in `spectrum.js` now always evaluates shelf bands'
+  curves at a fixed `q = 1`, matching real filter behavior, never
+  `filter.Q.value`.
+- The wheel handler only adjusts Q when hovering the peaking band (band
+  1); hovering a shelf band's dot now falls through to zoom/pan instead
+  of silently doing nothing.
+- Task 1's accumulator-function parameterization (`minQ`/`maxQ` params)
+  is reverted — `accumulatorForQ`/`qForAccumulator`/`updateQAccumulator`
+  are back to their pre-Task-1 unparameterized form, and
+  `MIN_SHELF_Q`/`MAX_SHELF_Q`/`BAND_Q_RANGES` are removed entirely, since
+  there's no longer a second Q range to parameterize for.
+- `setEqState` now derives `filters[i].Q.value` from the clamped
+  accumulator round-trip instead of writing raw persisted `band.q`, and
+  clamps `gain` via the existing `clampGain()` — for all three bands, not
+  just the shelf ones, closing the unclamped-persisted-data class of bug
+  generally.
+
+See `docs/superpowers/specs/2026-07-26-eq-shelf-bands-design.md`'s
+matching "Correction" section for the full writeup.

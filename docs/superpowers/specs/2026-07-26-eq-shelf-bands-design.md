@@ -88,6 +88,48 @@ both Q ranges can share the same accumulator logic without duplicating it.
   consistent with the rest of that file: band 0's curve should look like a
   shelf (flat below its corner, rolling into 0dB above) rather than a bell;
   band 2 symmetric on the high side; band 1 unchanged bell shape; audio
-  changes accordingly when dragging/scrolling bands 0 and 2; scrolling a
-  shelf band's Q stops adjusting at the tighter 1.8 ceiling rather than
-  continuing to 24.
+  changes accordingly when dragging bands 0 and 2.
+
+## Correction: shelf bands have no adjustable Q at all (found in final review)
+
+The "Q range safety constraint" section above is built on a false premise,
+caught by the final whole-branch review and independently confirmed against
+MDN's `BiquadFilterNode` documentation: **`Q` is not used at all for
+`lowshelf`/`highshelf` filter types** — Web Audio hardcodes a fixed shelf
+slope (equivalent to `S = 1`) for both, regardless of what `Q` is set to.
+The claim that "`BiquadFilterNode`'s internal implementation for
+`lowshelf`/`highshelf` uses this same coefficient family [as the drawn
+curve]" was wrong in the specific sense that mattered: the real filter
+ignores `Q`/`S` entirely, while the drawn curve was using it. That mismatch
+meant scrolling a shelf band's Q changed the picture without changing the
+sound at all — up to ~9dB of drawn-vs-real divergence at the range extremes
+this spec originally chose, and off-canvas (32.9dB) at full gain.
+
+Corrected design:
+
+- Shelf bands (0, 2) have **no Q control**. The response curve for
+  `lowShelfResponseDb`/`highShelfResponseDb` is always evaluated at a fixed
+  `q = 1` (matching what the real filter actually does), never
+  `filter.Q.value` — so the drawn curve can never diverge from the audio.
+- The wheel-scroll-to-adjust-Q interaction now only fires when hovering
+  band 1's (peaking) dot. Scrolling over bands 0/2's dots falls through to
+  the existing zoom/pan behavior instead of doing nothing silently.
+- Consequently, the whole "Q range safety constraint" section is moot —
+  there's no shelf Q parameter to clamp, so no NaN class exists. The
+  accumulator-function parameterization (min/max range) added for that
+  purpose is reverted; `eq.js`'s `accumulatorForQ`/`qForAccumulator`/
+  `updateQAccumulator` go back to their original unparameterized form, and
+  `MIN_SHELF_Q`/`MAX_SHELF_Q` are removed.
+- This also fixes a second bug the false premise caused: `setEqState` was
+  writing persisted `band.q` straight to the filter node with no
+  validation, so a `Q` value saved back when band 0 was still a peaking
+  filter (scrollable up to 24) produced `NaN` in the shelf response
+  formula on load, silently blanking the entire EQ curve. Pinning the
+  shelf formula's `q` to a fixed `1` removes this failure mode too, since
+  the stored (now-irrelevant) `q` value is never read for shelf bands.
+  `setEqState` also now clamps `gain` via the existing `clampGain()`
+  before writing it, closing the same class of unvalidated-persisted-data
+  risk for gain.
+- The persisted shape (`eqBands: [{freq, gain, q}, ...]`) is unchanged —
+  `q` is still stored for all 3 bands for schema uniformity, it's simply
+  never read back for bands 0/2 anymore.
