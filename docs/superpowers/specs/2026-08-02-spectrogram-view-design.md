@@ -59,11 +59,14 @@ and its plugins read from.
 
 ## Sync with the main waveform
 
-Automatic — no manual wiring needed. Because `SpectrogramPlugin` is
-registered on the same `wavesurfer` instance as the waveform and
-`RegionsPlugin`, it renders from the same decoded buffer and stays in sync
-with pan/zoom the same way `RegionsPlugin`'s regions already do, without
-any code in `main.js` reacting to scroll/zoom events.
+~~Automatic — no manual wiring needed.~~ **Superseded — see Correction
+below.** This section originally assumed that because `SpectrogramPlugin`
+is registered on the same `wavesurfer` instance as the waveform and
+`RegionsPlugin`, it would render from the same decoded buffer and stay in
+sync with pan/zoom the same way `RegionsPlugin`'s regions already do. That
+assumption turned out to be false for pan and playback-follow (zoom alone
+does work automatically) — manual sync code is required; see the
+Correction section.
 
 ## File structure
 
@@ -92,3 +95,78 @@ no custom logic — the same untested-by-convention treatment
 codebase. Verified manually in a real browser instead (uploading a file,
 confirming the spectrogram renders and its visible time range moves
 correctly when the waveform is scrolled/zoomed).
+
+## Correction: the plugin does not actually sync pan/playback (found during manual verification)
+
+Manual browser verification (real headless Chromium, not just reading
+code) found that `SpectrogramPlugin` only stays in sync with the waveform
+on **zoom** — pan (shift+wheel) and playback's auto-follow-the-playhead
+scrolling leave the spectrogram frozen on whatever view was rendered at the
+last zoom change, even though `wavesurfer`'s own `scroll` event was
+confirmed (via direct event instrumentation in the browser) to fire
+correctly with accurate `[visibleStartTime, visibleEndTime, scrollLeft,
+scrollRight]` data on every pan and playback tick. Zoom "appears" to sync
+only because the plugin fully re-renders its canvas at the new zoomed
+width starting from position 0 every time — which happens to look correct
+immediately after a zoom (position 0 is often what's on screen right
+after zooming around a click point near the start) but is not actually
+tracking scroll position at all.
+
+Confirmed this is not fixable by configuration: the newer
+`wavesurfer.js/plugins/spectrogram-windowed` variant (`WindowedSpectrogram
+Plugin`, from upstream PR #4125, explicitly built to improve on the
+original plugin) explicitly subscribes to `wavesurfer`'s `scroll` event in
+its own source — the theoretically-correct approach — but still exhibited
+the identical frozen-view symptom when tested directly. Disabling
+`useWebWorker` (in case rapid scroll events were racing with delayed
+worker responses) made no difference either. A search of upstream
+`wavesurfer.js` GitHub issues found related-but-unresolved reports (e.g.
+"spectrogram has no changes" on zoom) with no maintainer-confirmed fix or
+documented workaround, and no newer stable release beyond the one already
+installed (7.12.11; only a v8 beta exists).
+
+**Fix**: keep `SpectrogramPlugin` (its rendering — colors, labels, dB
+scaling, FFT — is correct and unaffected by this bug), but drive its
+container's horizontal position manually from `main.js`, using the exact
+`wavesurfer.getScroll()` value both plugins already fail to apply
+themselves:
+
+```js
+function syncSpectrogramScroll() {
+  const wideCanvas = [...spectrogramContainer.querySelectorAll('canvas')].find(
+    (c) => c.width > spectrogramContainer.clientWidth,
+  )
+  if (wideCanvas && wideCanvas.parentElement) {
+    wideCanvas.parentElement.style.transform = `translateX(${-wavesurfer.getScroll()}px)`
+  }
+}
+wavesurfer.on('scroll', syncSpectrogramScroll)
+wavesurfer.on('redraw', syncSpectrogramScroll)
+```
+
+- `wavesurfer.on('scroll', ...)` covers pan and playback-follow (confirmed
+  firing correctly in both cases).
+- `wavesurfer.on('redraw', ...)` covers zoom — the plugin's own zoom-time
+  re-render always starts from position 0, so this re-applies the current
+  (possibly non-zero, e.g. after playback has scrolled forward and the
+  user then zooms) scroll offset immediately after that re-render, rather
+  than leaving the just-zoomed view snapped back to position 0.
+- The "find the wide canvas" lookup avoids hardcoding the plugin's private
+  DOM structure (a fixed index-based selector into an undocumented
+  internal layout would be more fragile and no more correct); it looks for
+  whichever canvas is currently wider than the visible container, which is
+  the content canvas at any zoom level, and leaves the separate,
+  always-narrow frequency-labels canvas untouched (so labels correctly
+  stay pinned to the left edge while the content pans underneath).
+- Reaching into the plugin's internal DOM at all is an explicit,
+  acknowledged fragility: `SpectrogramPlugin` doesn't expose a public
+  redraw/reposition method, so this could break on a future
+  `wavesurfer.js` upgrade. Accepted as the pragmatic fix after confirming
+  there is no supported alternative — if a future upgrade breaks this, the
+  fix is to re-verify the DOM structure and adjust the lookup, not to
+  revert to assuming automatic sync.
+
+Verified end-to-end in a real browser after this fix: zoom, pan, and
+playback-follow all now show the spectrogram content matching whatever
+time range the waveform currently displays, with frequency labels staying
+correctly pinned.
