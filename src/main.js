@@ -7,6 +7,8 @@ import { renderSelectionsList } from './selectionsList.js'
 import { mixToMono, computeSpectralFlux, pickOnsets } from './onsets.js'
 import { computePeakGain, applyGain, encodeWav } from './normalize.js'
 import { computeFileHash, loadSettings, saveSettings } from './persistence.js'
+import { saveCurrentAudio, loadCurrentAudio } from './audioStore.js'
+import { createIndexedDbStore } from './indexedDbStore.js'
 import { defaultEqBands } from './eq.js'
 
 const uploadInput = document.getElementById('upload')
@@ -90,13 +92,13 @@ function saveCurrentSettings() {
   })
 }
 
-uploadInput.addEventListener('change', async () => {
-  const file = uploadInput.files[0]
-  if (!file) return
-  uploadError.hidden = true
-  uploadFilename.textContent = file.name
+const dbStore = createIndexedDbStore()
 
-  const arrayBuffer = await file.arrayBuffer()
+async function loadAudio(blob, label) {
+  uploadError.hidden = true
+  uploadFilename.textContent = label
+
+  const arrayBuffer = await blob.arrayBuffer()
   currentFileHash = await computeFileHash(arrayBuffer)
   applySettings(loadSettings(localStorage, currentFileHash) ?? DEFAULT_SETTINGS)
 
@@ -104,9 +106,23 @@ uploadInput.addEventListener('change', async () => {
     const normalizedBlob = await normalizeAudio(arrayBuffer)
     wavesurfer.loadBlob(normalizedBlob)
   } catch {
-    wavesurfer.loadBlob(file)
+    wavesurfer.loadBlob(blob)
   }
+}
+
+uploadInput.addEventListener('change', async () => {
+  const file = uploadInput.files[0]
+  if (!file) return
+  await loadAudio(file, file.name)
+  saveCurrentAudio(dbStore, file, file.name)
 })
+
+;(async () => {
+  const stored = await loadCurrentAudio(dbStore)
+  if (stored) {
+    await loadAudio(stored.blob, stored.label)
+  }
+})()
 
 const ZOOM_FACTOR = 1.2
 const MIN_PX_PER_SEC = 10
