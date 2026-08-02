@@ -705,12 +705,6 @@ regions.on('region-updated', (region) => {
   }
 })
 
-regions.on('region-out', (region) => {
-  if (region.id === activeRegionId) {
-    region.play()
-  }
-})
-
 wavesurfer.on('interaction', (newTime) => {
   if (settingBeatOne) {
     beatOffset = newTime
