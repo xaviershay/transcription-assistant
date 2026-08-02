@@ -50,8 +50,34 @@ h2 {
   flex-wrap: wrap;
 }
 
-#selections-section.panel {
+#selections-section.panel,
+#shortcuts-section.panel {
   display: block;
+}
+
+.shortcuts-list {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 0.4rem 0.75rem;
+  margin: 0;
+}
+
+.shortcuts-list dt {
+  white-space: nowrap;
+}
+
+.shortcuts-list dd {
+  margin: 0;
+  color: #a0a0a0;
+}
+
+kbd {
+  background: #2a2a2a;
+  border: 1px solid #3a3a3a;
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+  font-family: inherit;
+  font-size: 0.85rem;
 }
 
 #controls-section.panel {
