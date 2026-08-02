@@ -684,7 +684,13 @@ function activateRegion(id) {
 
 regions.enableDragSelection({ color: 'rgba(79, 109, 245, 0.2)' })
 
-regions.on('region-created', () => refreshSelectionsList())
+regions.on('region-created', (region) => {
+  region.element?.addEventListener('contextmenu', (e) => {
+    e.preventDefault()
+    region.remove()
+  })
+  refreshSelectionsList()
+})
 
 regions.on('region-removed', (region) => {
   if (region.id === activeRegionId) {
