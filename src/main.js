@@ -1,5 +1,6 @@
 import './style.css'
-import { createWaveSurfer } from './waveform.js'
+import { createWaveSurfer, SPECTROGRAM_MIN_FREQ, SPECTROGRAM_MAX_FREQ } from './waveform.js'
+import { drawSpectrogramLabels } from './spectrogramLabels.js'
 import TimelinePlugin from 'wavesurfer.js/plugins/timeline'
 import { createSpectrumAnalyser } from './spectrum.js'
 import { sortRegionsByStart, getAdjacentRegionId } from './selections.js'
@@ -22,6 +23,8 @@ const spectrumCanvas = document.getElementById('spectrum')
 let spectrumAnalyser = null
 
 const { wavesurfer, regions, spectrogram } = createWaveSurfer(waveformContainer, spectrogramContainer)
+
+drawSpectrogramLabels(document.getElementById('spectrogram-labels'), SPECTROGRAM_MIN_FREQ, SPECTROGRAM_MAX_FREQ)
 
 spectrogram.on('error', (error) => {
   showToast(`Could not render spectrogram: ${error.message}`)

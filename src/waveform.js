@@ -1,17 +1,20 @@
 import WaveSurfer from 'wavesurfer.js'
 import RegionsPlugin from 'wavesurfer.js/plugins/regions'
 import SpectrogramPlugin from 'wavesurfer.js/plugins/spectrogram'
-import { MIN_FREQ, MAX_FREQ } from './spectrum.js'
+import { frequencyFromMidi } from './notes.js'
+
+export const SPECTROGRAM_MIN_FREQ = frequencyFromMidi(36) // C2
+export const SPECTROGRAM_MAX_FREQ = frequencyFromMidi(72) // C5
 
 export function createWaveSurfer(container, spectrogramContainer) {
   const regions = RegionsPlugin.create()
   const spectrogram = SpectrogramPlugin.create({
     container: spectrogramContainer,
-    height: 200,
-    labels: true,
+    height: 400,
+    labels: false,
     scale: 'logarithmic',
-    frequencyMin: MIN_FREQ,
-    frequencyMax: MAX_FREQ,
+    frequencyMin: SPECTROGRAM_MIN_FREQ,
+    frequencyMax: SPECTROGRAM_MAX_FREQ,
     colorMap: 'roseus',
     useWebWorker: true,
     // useWebWorker's whole point is to avoid blocking the main thread on long
