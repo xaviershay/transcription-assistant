@@ -95,18 +95,25 @@ function saveCurrentSettings() {
 
 const dbStore = createIndexedDbStore()
 
+let loadGeneration = 0
+
 async function loadAudio(blob, label) {
-  uploadError.hidden = true
-  uploadFilename.textContent = label
+  const generation = ++loadGeneration
 
   const arrayBuffer = await blob.arrayBuffer()
-  currentFileHash = await computeFileHash(arrayBuffer)
+  const hash = await computeFileHash(arrayBuffer)
+  if (generation !== loadGeneration) return
+  uploadError.hidden = true
+  uploadFilename.textContent = label
+  currentFileHash = hash
   applySettings(loadSettings(localStorage, currentFileHash) ?? DEFAULT_SETTINGS)
 
   try {
     const normalizedBlob = await normalizeAudio(arrayBuffer)
+    if (generation !== loadGeneration) return
     wavesurfer.loadBlob(normalizedBlob)
   } catch {
+    if (generation !== loadGeneration) return
     wavesurfer.loadBlob(blob)
   }
 }

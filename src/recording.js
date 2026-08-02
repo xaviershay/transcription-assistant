@@ -21,7 +21,13 @@ export async function startRecording() {
 
   const audioStream = new MediaStream(audioTracks)
   const chunks = []
-  const recorder = new MediaRecorder(audioStream)
+  let recorder
+  try {
+    recorder = new MediaRecorder(audioStream)
+  } catch (err) {
+    audioTracks.forEach((track) => track.stop())
+    throw err
+  }
   recorder.ondataavailable = (e) => {
     if (e.data.size > 0) chunks.push(e.data)
   }
@@ -34,7 +40,7 @@ export async function startRecording() {
 
   return {
     stop: () => {
-      recorder.stop()
+      if (recorder.state !== 'inactive') recorder.stop()
       stream.getTracks().forEach((track) => track.stop())
       return stopped
     },
