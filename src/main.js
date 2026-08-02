@@ -705,6 +705,17 @@ regions.on('region-clicked', (region, e) => {
   activateRegion(region.id)
 })
 
+// Loops the active selection during playback. Guarded on isPlaying() because
+// a click on a region also reaches wavesurfer's own click-to-seek handling
+// (stopPropagation above doesn't stop that separate path), which fires this
+// same region-out event purely from the seek - without the guard, clicking
+// a selection while paused would start playback again.
+regions.on('region-out', (region) => {
+  if (region.id === activeRegionId && wavesurfer.isPlaying()) {
+    region.play()
+  }
+})
+
 regions.on('region-updated', (region) => {
   if (region.id === activeRegionId) {
     updatePianoRollView(region.start, region.end)
