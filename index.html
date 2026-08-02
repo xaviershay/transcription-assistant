@@ -9,67 +9,73 @@
     <main>
       <h1>Transcription Assistant</h1>
 
-      <section id="upload-section" class="panel">
-        <label for="upload" class="file-button">Choose Audio File</label>
-        <input type="file" id="upload" accept="audio/*" class="visually-hidden" />
-        <button id="record-btn">Record</button>
-        <span id="upload-filename"></span>
-      </section>
+      <div id="layout">
+        <div id="main-column">
+          <section id="upload-section" class="panel">
+            <label for="upload" class="file-button">Choose Audio File</label>
+            <input type="file" id="upload" accept="audio/*" class="visually-hidden" />
+            <button id="record-btn">Record</button>
+            <span id="upload-filename"></span>
+          </section>
 
-      <section id="waveform-section">
-        <div id="waveform"></div>
-      </section>
+          <section id="waveform-section">
+            <div id="waveform"></div>
+          </section>
 
-      <section id="beat-grid-section" class="panel">
-        <label for="tempo">Tempo</label>
-        <input type="range" id="tempo" min="40" max="240" step="1" value="120" />
-        <span id="tempo-label">120 BPM</span>
-        <label for="subdivisions">Subdivisions</label>
-        <input type="range" id="subdivisions" min="1" max="8" step="1" value="4" />
-        <span id="subdivisions-label">4</span>
-        <button id="set-beat-one">Set Beat 1</button>
-      </section>
+          <section id="beat-grid-section" class="panel">
+            <label for="tempo">Tempo</label>
+            <input type="range" id="tempo" min="40" max="240" step="1" value="120" />
+            <span id="tempo-label">120 BPM</span>
+            <label for="subdivisions">Subdivisions</label>
+            <input type="range" id="subdivisions" min="1" max="8" step="1" value="4" />
+            <span id="subdivisions-label">4</span>
+            <button id="set-beat-one">Set Beat 1</button>
+          </section>
 
-      <section id="controls-section" class="panel">
-        <button id="play-pause" disabled>Play</button>
-        <label for="speed">Speed</label>
-        <input type="range" id="speed" min="0.25" max="1.5" step="0.05" value="1" />
-        <span id="speed-label">1.00x</span>
-        <label for="volume">Volume</label>
-        <input type="range" id="volume" min="0" max="1" step="0.01" value="1" />
-        <span id="volume-label">100%</span>
-        <span id="active-label"></span>
-      </section>
+          <section id="controls-section" class="panel">
+            <button id="play-pause" disabled>Play</button>
+            <label for="speed">Speed</label>
+            <input type="range" id="speed" min="0.25" max="1.5" step="0.05" value="1" />
+            <span id="speed-label">1.00x</span>
+            <label for="volume">Volume</label>
+            <input type="range" id="volume" min="0" max="1" step="0.01" value="1" />
+            <span id="volume-label">100%</span>
+            <span id="active-label"></span>
+          </section>
 
-      <section id="spectrum-section">
-        <canvas id="spectrum" height="200"></canvas>
-        <button id="reset-eq">Reset EQ</button>
-      </section>
+          <section id="spectrum-section">
+            <canvas id="spectrum" height="200"></canvas>
+            <button id="reset-eq">Reset EQ</button>
+          </section>
 
-      <section id="selections-section" class="panel">
-        <div class="selections-header">
-          <h2>Selections</h2>
-          <label for="onset-sensitivity">Sensitivity</label>
-          <input type="range" id="onset-sensitivity" min="0.2" max="2.5" step="0.1" value="1.0" disabled />
-          <button id="delete-all-selections" disabled>Delete All</button>
+          <section id="piano-roll-section">
+            <canvas id="piano-roll" height="400"></canvas>
+            <canvas id="piano-roll-labels" height="24"></canvas>
+            <div id="piano-roll-tooltip" hidden></div>
+          </section>
+
+          <section id="piano-roll-controls" class="panel">
+            <label for="piano-roll-gain">Gain</label>
+            <input type="range" id="piano-roll-gain" min="0" max="40" step="1" value="20" />
+            <span id="piano-roll-gain-label">20 dB</span>
+            <label for="piano-roll-range">Range</label>
+            <input type="range" id="piano-roll-range" min="20" max="100" step="5" value="80" />
+            <span id="piano-roll-range-label">80 dB</span>
+          </section>
         </div>
-        <ul id="selections-list"></ul>
-      </section>
 
-      <section id="piano-roll-controls" class="panel">
-        <label for="piano-roll-gain">Gain</label>
-        <input type="range" id="piano-roll-gain" min="0" max="40" step="1" value="20" />
-        <span id="piano-roll-gain-label">20 dB</span>
-        <label for="piano-roll-range">Range</label>
-        <input type="range" id="piano-roll-range" min="20" max="100" step="5" value="80" />
-        <span id="piano-roll-range-label">80 dB</span>
-      </section>
-
-      <section id="piano-roll-section">
-        <canvas id="piano-roll" height="400"></canvas>
-        <canvas id="piano-roll-labels" height="24"></canvas>
-        <div id="piano-roll-tooltip" hidden></div>
-      </section>
+        <div id="side-column">
+          <section id="selections-section" class="panel">
+            <div class="selections-header">
+              <h2>Selections</h2>
+              <label for="onset-sensitivity">Sensitivity</label>
+              <input type="range" id="onset-sensitivity" min="0.2" max="2.5" step="0.1" value="1.0" disabled />
+              <button id="delete-all-selections" disabled>Delete All</button>
+            </div>
+            <ul id="selections-list"></ul>
+          </section>
+        </div>
+      </div>
 
       <footer>Made by <a href="https://xaviershay.com" target="_blank" rel="noopener">Xavier Shay</a></footer>
       <div id="toast" class="toast" hidden></div>

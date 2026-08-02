@@ -7,10 +7,23 @@
 
 body {
   margin: 0 auto;
-  max-width: 900px;
+  max-width: 1300px;
   padding: 1rem;
   background: #121212;
   color: #e6e6e6;
+}
+
+#layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  align-items: start;
+  gap: 1rem;
+}
+
+@media (max-width: 900px) {
+  #layout {
+    grid-template-columns: 1fr;
+  }
 }
 
 h1 {

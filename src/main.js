@@ -19,6 +19,8 @@ import {
   PIANO_ROLL_MAX_MIDI,
   PIANO_ROLL_MIN_FREQ,
   PIANO_ROLL_MAX_FREQ,
+  DEFAULT_GAIN_DB,
+  DEFAULT_RANGE_DB,
 } from './pianoRoll.js'
 import { computeFileHash, loadSettings, saveSettings } from './persistence.js'
 import { saveCurrentAudio, loadCurrentAudio } from './audioStore.js'
@@ -95,6 +97,7 @@ pianoRollGainSlider.addEventListener('input', () => {
   pianoRollGainLabel.textContent = `${pianoRollGainDB} dB`
   rescalePianoRollFrames()
   redrawPianoRollSlice()
+  saveCurrentSettings()
 })
 
 pianoRollRangeSlider.addEventListener('input', () => {
@@ -102,6 +105,7 @@ pianoRollRangeSlider.addEventListener('input', () => {
   pianoRollRangeLabel.textContent = `${pianoRollRangeDB} dB`
   rescalePianoRollFrames()
   redrawPianoRollSlice()
+  saveCurrentSettings()
 })
 
 function getVisibleTimeRange() {
@@ -202,7 +206,15 @@ async function normalizeAudio(arrayBuffer) {
   }
 }
 
-const DEFAULT_SETTINGS = { bpm: 120, subdivisions: 4, offset: 0, volume: 1, eqBands: defaultEqBands() }
+const DEFAULT_SETTINGS = {
+  bpm: 120,
+  subdivisions: 4,
+  offset: 0,
+  volume: 1,
+  eqBands: defaultEqBands(),
+  gainDB: DEFAULT_GAIN_DB,
+  rangeDB: DEFAULT_RANGE_DB,
+}
 
 let currentFileHash = null
 let pendingEqSettings = DEFAULT_SETTINGS.eqBands
@@ -220,6 +232,14 @@ function applySettings(settings) {
   wavesurfer.setVolume(settings.volume)
   rebuildTimeline()
   pendingEqSettings = settings.eqBands
+  pianoRollGainDB = settings.gainDB
+  pianoRollRangeDB = settings.rangeDB
+  pianoRollGainSlider.value = String(pianoRollGainDB)
+  pianoRollGainLabel.textContent = `${pianoRollGainDB} dB`
+  pianoRollRangeSlider.value = String(pianoRollRangeDB)
+  pianoRollRangeLabel.textContent = `${pianoRollRangeDB} dB`
+  rescalePianoRollFrames()
+  redrawPianoRollSlice()
 }
 
 let eqSaveDebounceTimer = null
@@ -238,6 +258,8 @@ function saveCurrentSettings() {
     offset: beatOffset,
     volume: Number(volumeInput.value),
     eqBands,
+    gainDB: pianoRollGainDB,
+    rangeDB: pianoRollRangeDB,
   })
 }
 

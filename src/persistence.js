@@ -1,4 +1,5 @@
 import { defaultEqBands } from './eq.js'
+import { DEFAULT_GAIN_DB, DEFAULT_RANGE_DB } from './pianoRoll.js'
 
 export function bufferToHex(buffer) {
   return [...new Uint8Array(buffer)].map((b) => b.toString(16).padStart(2, '0')).join('')
@@ -53,6 +54,8 @@ export function loadSettings(storage, hash) {
       offset: parsed.offset,
       volume: parsed.volume,
       eqBands: normalizeEqBands(parsed),
+      gainDB: typeof parsed.gainDB === 'number' ? parsed.gainDB : DEFAULT_GAIN_DB,
+      rangeDB: typeof parsed.rangeDB === 'number' ? parsed.rangeDB : DEFAULT_RANGE_DB,
     }
   } catch {
     return null

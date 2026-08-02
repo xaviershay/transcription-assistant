@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { bufferToHex, computeFileHash, loadSettings, saveSettings } from './persistence.js'
+import { DEFAULT_GAIN_DB, DEFAULT_RANGE_DB } from './pianoRoll.js'
 
 function createMemoryStorage() {
   const map = new Map()
@@ -42,6 +43,8 @@ describe('loadSettings / saveSettings', () => {
         { freq: 900, gain: -2, q: 2 },
         { freq: 5000, gain: 6, q: 0.8 },
       ],
+      gainDB: 10,
+      rangeDB: 60,
     }
     saveSettings(storage, 'abc123', settings)
     expect(loadSettings(storage, 'abc123')).toEqual(settings)
@@ -80,6 +83,8 @@ describe('loadSettings / saveSettings', () => {
         { freq: 1000, gain: 0, q: 1 },
         { freq: 3000, gain: 0, q: 1 },
       ],
+      gainDB: DEFAULT_GAIN_DB,
+      rangeDB: DEFAULT_RANGE_DB,
     })
   })
 
@@ -99,6 +104,29 @@ describe('loadSettings / saveSettings', () => {
         { freq: 1000, gain: 0, q: 1 },
         { freq: 3000, gain: 0, q: 1 },
       ],
+      gainDB: DEFAULT_GAIN_DB,
+      rangeDB: DEFAULT_RANGE_DB,
     })
+  })
+
+  it('defaults gain/range for settings saved before the piano roll feature existed', () => {
+    const storage = createMemoryStorage()
+    storage.setItem(
+      'ear-transcriber:settings:pre-piano-roll',
+      JSON.stringify({
+        bpm: 100,
+        subdivisions: 4,
+        offset: 0,
+        volume: 1,
+        eqBands: [
+          { freq: 200, gain: 0, q: 1 },
+          { freq: 1000, gain: 0, q: 1 },
+          { freq: 3000, gain: 0, q: 1 },
+        ],
+      }),
+    )
+    const loaded = loadSettings(storage, 'pre-piano-roll')
+    expect(loaded.gainDB).toBe(DEFAULT_GAIN_DB)
+    expect(loaded.rangeDB).toBe(DEFAULT_RANGE_DB)
   })
 })
