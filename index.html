@@ -11,13 +11,6 @@
 
       <div id="layout">
         <div id="main-column">
-          <section id="upload-section" class="panel">
-            <label for="upload" class="file-button">Choose Audio File</label>
-            <input type="file" id="upload" accept="audio/*" class="visually-hidden" />
-            <button id="record-btn">Record</button>
-            <span id="upload-filename"></span>
-          </section>
-
           <section id="waveform-section">
             <div id="waveform"></div>
           </section>
@@ -30,17 +23,6 @@
             <input type="range" id="subdivisions" min="1" max="8" step="1" value="4" />
             <span id="subdivisions-label">4</span>
             <button id="set-beat-one">Set Beat 1</button>
-          </section>
-
-          <section id="controls-section" class="panel">
-            <button id="play-pause" disabled>Play</button>
-            <label for="speed">Speed</label>
-            <input type="range" id="speed" min="0.25" max="1.5" step="0.05" value="1" />
-            <span id="speed-label">1.00x</span>
-            <label for="volume">Volume</label>
-            <input type="range" id="volume" min="0" max="1" step="0.01" value="1" />
-            <span id="volume-label">100%</span>
-            <span id="active-label"></span>
           </section>
 
           <section id="spectrum-section">
@@ -65,6 +47,24 @@
         </div>
 
         <div id="side-column">
+          <section id="upload-section" class="panel">
+            <label for="upload" class="file-button">Choose Audio File</label>
+            <input type="file" id="upload" accept="audio/*" class="visually-hidden" />
+            <button id="record-btn">Record</button>
+            <span id="upload-filename"></span>
+          </section>
+
+          <section id="controls-section" class="panel">
+            <button id="play-pause" disabled>Play</button>
+            <label for="speed">Speed</label>
+            <input type="range" id="speed" min="0.25" max="1.5" step="0.05" value="1" />
+            <span id="speed-label">1.00x</span>
+            <label for="volume">Volume</label>
+            <input type="range" id="volume" min="0" max="1" step="0.01" value="1" />
+            <span id="volume-label">100%</span>
+            <span id="active-label"></span>
+          </section>
+
           <section id="selections-section" class="panel">
             <div class="selections-header">
               <h2>Selections</h2>

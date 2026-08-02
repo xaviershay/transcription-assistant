@@ -7,7 +7,6 @@
 
 body {
   margin: 0 auto;
-  max-width: 1300px;
   padding: 1rem;
   background: #121212;
   color: #e6e6e6;
@@ -15,7 +14,9 @@ body {
 
 #layout {
   display: grid;
-  grid-template-columns: minmax(0, 2fr) minmax(280px, 1fr);
+  /* Side column is a fixed width - the graphs column (1fr) absorbs all
+     remaining horizontal space instead of scaling proportionally with it. */
+  grid-template-columns: minmax(0, 1fr) 320px;
   align-items: start;
   gap: 1rem;
 }
@@ -237,6 +238,10 @@ input[type='range']::-moz-range-track {
 #selections-list button {
   padding: 0.2rem 0.6rem;
   font-size: 0.8rem;
+}
+
+#delete-all-selections {
+  white-space: nowrap;
 }
 
 .selections-header {
