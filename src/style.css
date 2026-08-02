@@ -56,6 +56,13 @@ h2 {
   box-sizing: border-box;
 }
 
+#spectrogram {
+  border: 1px solid #2a2a2a;
+  border-radius: 6px;
+  margin-block: 0.5rem;
+  overflow: hidden;
+}
+
 .toast {
   position: fixed;
   bottom: 1rem;

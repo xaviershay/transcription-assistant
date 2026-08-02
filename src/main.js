@@ -16,11 +16,16 @@ import { showToast } from './toast.js'
 const uploadInput = document.getElementById('upload')
 const uploadFilename = document.getElementById('upload-filename')
 const waveformContainer = document.getElementById('waveform')
+const spectrogramContainer = document.getElementById('spectrogram')
 const playPauseBtn = document.getElementById('play-pause')
 const spectrumCanvas = document.getElementById('spectrum')
 let spectrumAnalyser = null
 
-const { wavesurfer, regions } = createWaveSurfer(waveformContainer)
+const { wavesurfer, regions, spectrogram } = createWaveSurfer(waveformContainer, spectrogramContainer)
+
+spectrogram.on('error', (error) => {
+  showToast(`Could not render spectrogram: ${error.message}`)
+})
 
 wavesurfer.on('error', (error) => {
   showToast(`Could not load audio file: ${error.message}`)
