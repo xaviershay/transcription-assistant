@@ -47,10 +47,12 @@ spectrogram.on('error', (error) => {
 // (CSS pixels): per SpectrogramPlugin's source, it appends a wrapper div to
 // this container, then a canvasContainer div to the wrapper, then each content
 // canvas segment to canvasContainer - so content canvases sit three levels
-// below spectrogramContainer. The separate frequency-labels canvas is appended
-// directly to the wrapper instead (two levels below), so this depth check
-// picks out only a content canvas, whose parent (canvasContainer) is what
-// actually needs to move.
+// below spectrogramContainer. (The plugin can also append its own frequency-labels
+// canvas two levels below, directly on the wrapper, but only when its `labels`
+// option is true - this app sets `labels: false` and draws its own label canvas
+// instead, so that node doesn't exist here and this depth check only ever
+// matches a content canvas, whose parent (canvasContainer) is what actually
+// needs to move.)
 let spectrogramCanvasContainer = null
 
 function syncSpectrogramScroll() {

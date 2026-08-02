@@ -65,6 +65,8 @@ h2 {
 #spectrogram-labels {
   flex-shrink: 0;
   display: block;
+  align-self: flex-start;
+  margin-block: 1px;
 }
 
 #spectrogram {

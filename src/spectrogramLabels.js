@@ -27,7 +27,9 @@ export function drawSpectrogramLabels(canvas, minFreq, maxFreq) {
   ctx.font = '13px sans-serif'
   ctx.textAlign = 'right'
   ctx.textBaseline = 'middle'
+  const inset = 7 // roughly half the 13px line box, keeps the glyph fully inside the canvas at either edge
   for (const { y, text } of computeSpectrogramLabels(minFreq, maxFreq, canvas.height)) {
-    ctx.fillText(text, canvas.width - 4, y)
+    const drawY = Math.min(canvas.height - inset, Math.max(inset, y))
+    ctx.fillText(text, canvas.width - 4, drawY)
   }
 }
