@@ -16,7 +16,7 @@ body {
   display: grid;
   /* Side column is a fixed width - the graphs column (1fr) absorbs all
      remaining horizontal space instead of scaling proportionally with it. */
-  grid-template-columns: minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr) 400px;
   align-items: start;
   gap: 1rem;
 }
