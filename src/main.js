@@ -128,6 +128,7 @@ uploadInput.addEventListener('change', async () => {
 const recordBtn = document.getElementById('record-btn')
 let activeRecording = null
 let recordingTimer = null
+let recordingBusy = false
 
 if (!isRecordingSupported()) {
   recordBtn.disabled = true
@@ -147,27 +148,40 @@ async function stopActiveRecording() {
   clearInterval(recordingTimer)
   recordBtn.textContent = 'Record'
 
-  const blob = await recording.stop()
-  const label = formatRecordingLabel()
-  await loadAudio(blob, label)
-  saveCurrentAudio(dbStore, blob, label)
+  try {
+    const blob = await recording.stop()
+    const label = formatRecordingLabel()
+    await loadAudio(blob, label)
+    saveCurrentAudio(dbStore, blob, label)
+  } catch (err) {
+    uploadError.textContent = err.message
+    uploadError.hidden = false
+  } finally {
+    recordingBusy = false
+  }
 }
 
 recordBtn.addEventListener('click', async () => {
+  if (recordingBusy) return
+
   if (activeRecording) {
+    recordingBusy = true
     await stopActiveRecording()
     return
   }
 
+  recordingBusy = true
   let recording
   try {
     recording = await startRecording()
   } catch (err) {
+    recordingBusy = false
     if (err.name === 'NotAllowedError' || err.name === 'AbortError') return
     uploadError.textContent = err.message
     uploadError.hidden = false
     return
   }
+  recordingBusy = false
 
   activeRecording = recording
   const startedAt = Date.now()
