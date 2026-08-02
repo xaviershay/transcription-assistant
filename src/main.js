@@ -27,6 +27,25 @@ spectrogram.on('error', (error) => {
   showToast(`Could not render spectrogram: ${error.message}`)
 })
 
+// SpectrogramPlugin (and the newer WindowedSpectrogramPlugin) only stay in
+// sync with the waveform on zoom - pan and playback's auto-follow-the-playhead
+// scrolling leave it frozen on whatever was rendered at the last zoom change,
+// even though wavesurfer's own 'scroll' event fires correctly. Verified this
+// is a real gap in both plugin variants (not a config issue) via direct
+// browser testing - see docs/superpowers/specs/2026-08-02-spectrogram-view-design.md's
+// "Correction" section. Driving the plugin's container position manually
+// from wavesurfer's own scroll state is the confirmed fix.
+function syncSpectrogramScroll() {
+  const wideCanvas = [...spectrogramContainer.querySelectorAll('canvas')].find(
+    (c) => c.width > spectrogramContainer.clientWidth,
+  )
+  if (wideCanvas && wideCanvas.parentElement) {
+    wideCanvas.parentElement.style.transform = `translateX(${-wavesurfer.getScroll()}px)`
+  }
+}
+wavesurfer.on('scroll', syncSpectrogramScroll)
+wavesurfer.on('redraw', syncSpectrogramScroll)
+
 wavesurfer.on('error', (error) => {
   showToast(`Could not load audio file: ${error.message}`)
   playPauseBtn.disabled = true
