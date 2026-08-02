@@ -9,7 +9,22 @@ export function formatRecordingLabel(date = new Date()) {
 }
 
 export async function startRecording() {
-  const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true })
+  // Passing `audio: true` (a bare boolean) lets the browser apply its default
+  // voice-call audio processing (echo cancellation, noise suppression,
+  // auto-gain control) to the captured stream. Those algorithms assume a
+  // mic-and-speaker feedback loop - run against music/system audio (which
+  // has no such echo to cancel) they produce muffled ("tin can") output and
+  // comb-filter-like phasing artifacts as the adaptive filters fight content
+  // that isn't actually an echo. Explicitly disabling them is required to
+  // get a clean capture of tab/system audio.
+  const stream = await navigator.mediaDevices.getDisplayMedia({
+    video: true,
+    audio: {
+      echoCancellation: false,
+      noiseSuppression: false,
+      autoGainControl: false,
+    },
+  })
   const audioTracks = stream.getAudioTracks()
 
   if (audioTracks.length === 0) {
