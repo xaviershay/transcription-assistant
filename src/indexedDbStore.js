@@ -9,7 +9,7 @@ function openDb(dbName, storeName) {
   })
 }
 
-export function createIndexedDbStore(dbName = 'ear-transcriber', storeName = 'audio') {
+export function createIndexedDbStore(dbName = 'ear-transcriber', storeName = 'audio', onError) {
   let dbPromise = null
   function getDb() {
     if (!dbPromise) dbPromise = openDb(dbName, storeName)
@@ -26,7 +26,8 @@ export function createIndexedDbStore(dbName = 'ear-transcriber', storeName = 'au
           request.onsuccess = () => resolve(request.result)
           request.onerror = () => reject(request.error)
         })
-      } catch {
+      } catch (err) {
+        onError?.(err)
         return undefined
       }
     },
@@ -40,7 +41,8 @@ export function createIndexedDbStore(dbName = 'ear-transcriber', storeName = 'au
           tx.oncomplete = () => resolve()
           tx.onerror = () => reject(tx.error)
         })
-      } catch {
+      } catch (err) {
+        onError?.(err)
         // best-effort; save failures must never break the app
       }
     },

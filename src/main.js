@@ -91,7 +91,7 @@ function saveCurrentSettings() {
   })
 }
 
-const dbStore = createIndexedDbStore()
+const dbStore = createIndexedDbStore(undefined, undefined, (err) => showToast(err.message))
 
 let loadGeneration = 0
 
@@ -125,7 +125,11 @@ uploadInput.addEventListener('change', async () => {
 ;(async () => {
   const stored = await loadCurrentAudio(dbStore)
   if (stored) {
-    await loadAudio(stored.blob, stored.label)
+    try {
+      await loadAudio(stored.blob, stored.label)
+    } catch (err) {
+      showToast(err.message)
+    }
   }
 })()
 
