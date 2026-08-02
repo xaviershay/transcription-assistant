@@ -11,6 +11,7 @@ import {
   frameRangeForTime,
   drawPianoRollSlice,
   drawPianoRollLabels,
+  drawBeatGrid,
   PIANO_ROLL_MIN_MIDI,
   PIANO_ROLL_MAX_MIDI,
   PIANO_ROLL_MIN_FREQ,
@@ -36,6 +37,7 @@ const pianoRollCanvas = document.getElementById('piano-roll')
 const pianoRollLabelsCanvas = document.getElementById('piano-roll-labels')
 let pianoRollData = null
 let visibleFrameRange = { startFrame: 0, endFrame: 0 }
+let visibleTimeRange = { startTime: 0, endTime: 0 }
 
 function redrawPianoRollSlice() {
   if (!pianoRollData) return
@@ -47,10 +49,17 @@ function redrawPianoRollSlice() {
     PIANO_ROLL_MIN_MIDI,
     PIANO_ROLL_MAX_MIDI,
   )
+  // Mirrors the beat-grid overlay already drawn on the waveform's own
+  // timeline (see rebuildTimeline below), so the two views line up visually -
+  // same bpm/subdivisions/offset, just drawn as horizontal lines against the
+  // piano roll's vertical time axis instead of vertical ticks against the
+  // waveform's horizontal one.
+  drawBeatGrid(pianoRollCanvas, visibleTimeRange.startTime, visibleTimeRange.endTime, beatBpm, beatSubdivisions, beatOffset)
 }
 
 function updatePianoRollView(startTime, endTime) {
   if (!pianoRollData) return
+  visibleTimeRange = { startTime, endTime }
   visibleFrameRange = frameRangeForTime(
     startTime,
     endTime,
@@ -336,6 +345,7 @@ tempoSlider.addEventListener('input', () => {
   beatBpm = Number(tempoSlider.value)
   tempoLabel.textContent = `${beatBpm} BPM`
   rebuildTimeline()
+  redrawPianoRollSlice()
   saveCurrentSettings()
 })
 
@@ -343,6 +353,7 @@ subdivisionsSlider.addEventListener('input', () => {
   beatSubdivisions = Number(subdivisionsSlider.value)
   subdivisionsLabel.textContent = String(beatSubdivisions)
   rebuildTimeline()
+  redrawPianoRollSlice()
   saveCurrentSettings()
 })
 
@@ -606,6 +617,7 @@ wavesurfer.on('interaction', (newTime) => {
     setBeatOneBtn.textContent = 'Set Beat 1'
     setBeatOneBtn.disabled = false
     rebuildTimeline()
+    redrawPianoRollSlice()
     saveCurrentSettings()
   }
   setActiveRegion(null)

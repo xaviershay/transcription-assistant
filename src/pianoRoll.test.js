@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { magnitudeToByte, computeSpectrogramFrames, PIANO_ROLL_MIN_FREQ, PIANO_ROLL_MAX_FREQ } from './pianoRoll.js'
-import { frameRangeForTime } from './pianoRoll.js'
+import { frameRangeForTime, computeBeatGridLines } from './pianoRoll.js'
 
 const SAMPLE_RATE = 44100
 
@@ -86,5 +86,45 @@ describe('frameRangeForTime', () => {
   it('clamps endFrame to totalFrames - 1', () => {
     const { endFrame } = frameRangeForTime(0, 9999, 512, 44100, 100)
     expect(endFrame).toBe(99)
+  })
+})
+
+describe('computeBeatGridLines', () => {
+  it('places a line at every subdivision within range, at the correct fractional y', () => {
+    // 120 BPM -> 0.5s/beat, 4 subdivisions -> 0.125s apart, offset 0, range [0, 1]
+    // -> lines at t = 0, 0.125, 0.25, ..., 1.0 (9 lines total)
+    const lines = computeBeatGridLines(0, 1, 120, 4, 0)
+    expect(lines.length).toBe(9)
+    expect(lines[0].fraction).toBeCloseTo(0, 10)
+    expect(lines[4].fraction).toBeCloseTo(0.5, 10) // t=0.5, the midpoint of [0,1]
+    expect(lines[8].fraction).toBeCloseTo(1, 10)
+  })
+
+  it('marks every subdivisions-th line as a beat, numbered from 1', () => {
+    const lines = computeBeatGridLines(0, 1, 120, 4, 0)
+    const beats = lines.filter((l) => l.isBeat)
+    expect(beats.map((b) => b.beatNumber)).toEqual([1, 2, 3])
+    // non-beat subdivision lines carry no beat number
+    expect(lines[1].isBeat).toBe(false)
+    expect(lines[1].beatNumber).toBeNull()
+  })
+
+  it('respects a non-zero offset', () => {
+    // offset 0.3 shifts every line by 0.3s; range [0.3, 0.8] with the same
+    // 120bpm/4-subdivision spacing -> lines at 0.3, 0.425, 0.55, 0.675, 0.8
+    const lines = computeBeatGridLines(0.3, 0.8, 120, 4, 0.3)
+    expect(lines.length).toBe(5)
+    expect(lines[0].fraction).toBeCloseTo(0, 10)
+    expect(lines[4].fraction).toBeCloseTo(1, 10)
+  })
+
+  it('returns no lines for an inverted or zero-width range', () => {
+    expect(computeBeatGridLines(1, 1, 120, 4, 0)).toEqual([])
+    expect(computeBeatGridLines(2, 1, 120, 4, 0)).toEqual([])
+  })
+
+  it('returns no lines for a non-positive bpm or subdivisions', () => {
+    expect(computeBeatGridLines(0, 1, 0, 4, 0)).toEqual([])
+    expect(computeBeatGridLines(0, 1, 120, 0, 0)).toEqual([])
   })
 })

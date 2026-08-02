@@ -74,6 +74,46 @@ export function drawPianoRollSlice(canvas, frames, startFrame, endFrame, minMidi
   }
 }
 
+export function computeBeatGridLines(startTime, endTime, bpm, subdivisions, offset) {
+  if (!(endTime > startTime) || !(bpm > 0) || !(subdivisions > 0)) return []
+
+  const secondsPerBeat = 60 / bpm
+  const subdivisionInterval = secondsPerBeat / subdivisions
+  const firstIndex = Math.ceil((startTime - offset) / subdivisionInterval)
+  const lastIndex = Math.floor((endTime - offset) / subdivisionInterval)
+
+  const lines = []
+  for (let i = firstIndex; i <= lastIndex; i++) {
+    const time = offset + i * subdivisionInterval
+    const fraction = (time - startTime) / (endTime - startTime)
+    const isBeat = ((i % subdivisions) + subdivisions) % subdivisions === 0
+    lines.push({ fraction, isBeat, beatNumber: isBeat ? Math.round(i / subdivisions) + 1 : null })
+  }
+  return lines
+}
+
+export function drawBeatGrid(canvas, startTime, endTime, bpm, subdivisions, offset) {
+  const ctx = canvas.getContext('2d')
+  ctx.font = '11px sans-serif'
+  ctx.textAlign = 'left'
+  ctx.textBaseline = 'top'
+
+  for (const { fraction, isBeat, beatNumber } of computeBeatGridLines(startTime, endTime, bpm, subdivisions, offset)) {
+    const y = fraction * canvas.height
+    ctx.strokeStyle = isBeat ? 'rgba(230, 230, 230, 0.4)' : 'rgba(230, 230, 230, 0.15)'
+    ctx.lineWidth = 1
+    ctx.beginPath()
+    ctx.moveTo(0, y)
+    ctx.lineTo(canvas.width, y)
+    ctx.stroke()
+
+    if (isBeat) {
+      ctx.fillStyle = LABEL_COLOR
+      ctx.fillText(String(beatNumber), 2, y + 1)
+    }
+  }
+}
+
 export function drawPianoRollLabels(canvas, minMidi, maxMidi) {
   const ctx = canvas.getContext('2d')
   ctx.fillStyle = BACKGROUND_COLOR
