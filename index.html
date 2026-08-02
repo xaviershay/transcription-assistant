@@ -55,19 +55,24 @@
           </section>
 
           <section id="controls-section" class="panel">
-            <button id="play-pause" disabled>Play</button>
-            <label for="speed">Speed</label>
-            <input type="range" id="speed" min="0.25" max="1.5" step="0.05" value="1" />
-            <span id="speed-label">1.00x</span>
-            <label for="volume">Volume</label>
-            <input type="range" id="volume" min="0" max="1" step="0.01" value="1" />
-            <span id="volume-label">100%</span>
+            <div class="control-row">
+              <button id="play-pause" disabled>Play</button>
+            </div>
+            <div class="control-row">
+              <label for="speed">Speed</label>
+              <input type="range" id="speed" min="0.25" max="1.5" step="0.05" value="1" />
+              <span id="speed-label">1.00x</span>
+            </div>
+            <div class="control-row">
+              <label for="volume">Volume</label>
+              <input type="range" id="volume" min="0" max="1" step="0.01" value="1" />
+              <span id="volume-label">100%</span>
+            </div>
             <span id="active-label"></span>
           </section>
 
           <section id="selections-section" class="panel">
             <div class="selections-header">
-              <h2>Selections</h2>
               <label for="onset-sensitivity">Sensitivity</label>
               <input type="range" id="onset-sensitivity" min="0.2" max="2.5" step="0.1" value="1.0" disabled />
               <button id="delete-all-selections" disabled>Delete All</button>
