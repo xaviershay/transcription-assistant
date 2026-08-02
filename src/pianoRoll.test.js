@@ -1,5 +1,13 @@
 import { describe, it, expect } from 'vitest'
-import { magnitudeToByte, computeSpectrogramFrames, PIANO_ROLL_MIN_FREQ, PIANO_ROLL_MAX_FREQ } from './pianoRoll.js'
+import {
+  magnitudeToByte,
+  computeSpectrogramFrames,
+  scaleFrames,
+  DEFAULT_GAIN_DB,
+  DEFAULT_RANGE_DB,
+  PIANO_ROLL_MIN_FREQ,
+  PIANO_ROLL_MAX_FREQ,
+} from './pianoRoll.js'
 import { frameRangeForTime, computeBeatGridLines } from './pianoRoll.js'
 
 const SAMPLE_RATE = 44100
@@ -14,60 +22,110 @@ function tone(freq, seconds) {
 }
 
 describe('magnitudeToByte', () => {
-  it('maps the peak magnitude itself to 255', () => {
-    expect(magnitudeToByte(10, 10)).toBe(255)
+  it('maps the magnitude at the gain point (gainDB below peak) to 255', () => {
+    // gainDB=0 -> white point is exactly the peak itself
+    expect(magnitudeToByte(10, 10, 0, 80)).toBe(255)
+  })
+
+  it('shifts the white point when gainDB > 0: quieter-than-peak content can map to 255', () => {
+    const peak = 1
+    const gainDB = 20
+    // magnitude 20dB below peak should now be the white point, not the peak itself
+    const atGainPoint = peak * Math.pow(10, -gainDB / 20)
+    expect(magnitudeToByte(atGainPoint, peak, gainDB, 80)).toBe(255)
+  })
+
+  it('clamps above 255 rather than overflowing when gainDB pushes the peak past the white point', () => {
+    // db=0 (the peak itself) with gainDB=20 computes past 1.0 before clamping
+    expect(magnitudeToByte(10, 10, 20, 80)).toBe(255)
   })
 
   it('maps digital silence (0) to 0', () => {
-    expect(magnitudeToByte(0, 10)).toBe(0)
+    expect(magnitudeToByte(0, 10, 0, 80)).toBe(0)
   })
 
-  it('maps a magnitude at the -80dB floor to 0', () => {
+  it('maps a magnitude at gainDB+rangeDB below peak to 0 (the black point)', () => {
     const peak = 1
-    const atFloor = peak * Math.pow(10, -80 / 20)
-    expect(magnitudeToByte(atFloor, peak)).toBe(0)
+    const gainDB = 0
+    const rangeDB = 80
+    const atFloor = peak * Math.pow(10, -(gainDB + rangeDB) / 20)
+    expect(magnitudeToByte(atFloor, peak, gainDB, rangeDB)).toBe(0)
   })
 
-  it('maps -40dB (half the default floor) to roughly half scale', () => {
+  it('maps the midpoint between white and black points to roughly half scale', () => {
     const peak = 1
-    const midpoint = peak * Math.pow(10, -40 / 20)
+    const gainDB = 0
+    const rangeDB = 80
+    const midpoint = peak * Math.pow(10, -(gainDB + rangeDB / 2) / 20)
     // 255 * 0.5 = 127.5 exactly; Math.round rounds half-up in JS, giving 128.
-    // toBeCloseTo(127.5, 0) requires a diff strictly < 0.5, which a diff of
-    // exactly 0.5 fails deterministically (not FFT-related flakiness), so
-    // assert the exact, reproducible rounded value instead.
-    expect(magnitudeToByte(midpoint, peak)).toBe(128)
+    expect(magnitudeToByte(midpoint, peak, gainDB, rangeDB)).toBe(128)
   })
 
   it('returns 0 when peakMagnitude is 0, rather than NaN/-Infinity from log(0)', () => {
-    expect(magnitudeToByte(5, 0)).toBe(0)
+    expect(magnitudeToByte(5, 0, 0, 80)).toBe(0)
   })
 })
 
 describe('computeSpectrogramFrames', () => {
-  it('returns frames/hopSize/sampleRate', () => {
+  it('returns rawFrames/peakMagnitude/hopSize/sampleRate', () => {
     const signal = tone(261.63, 0.3)
     const result = computeSpectrogramFrames(signal, SAMPLE_RATE, PIANO_ROLL_MIN_FREQ, PIANO_ROLL_MAX_FREQ)
     expect(result.hopSize).toBeGreaterThan(0)
     expect(result.sampleRate).toBe(SAMPLE_RATE)
-    expect(result.frames.length).toBeGreaterThan(0)
+    expect(result.rawFrames.length).toBeGreaterThan(0)
+    expect(result.peakMagnitude).toBeGreaterThan(0)
   })
 
-  it('every frame has a buckets array and a peakMidis Set', () => {
+  it('every raw frame is a plain buckets array with non-negative magnitude values', () => {
     const signal = tone(261.63, 0.3)
-    const { frames } = computeSpectrogramFrames(signal, SAMPLE_RATE, PIANO_ROLL_MIN_FREQ, PIANO_ROLL_MAX_FREQ)
-    for (const frame of frames) {
-      expect(Array.isArray(frame.buckets)).toBe(true)
-      expect(frame.peakMidis).toBeInstanceOf(Set)
+    const { rawFrames } = computeSpectrogramFrames(signal, SAMPLE_RATE, PIANO_ROLL_MIN_FREQ, PIANO_ROLL_MAX_FREQ)
+    for (const buckets of rawFrames) {
+      expect(Array.isArray(buckets)).toBe(true)
+      for (const bucket of buckets) {
+        expect(bucket.value).toBeGreaterThanOrEqual(0)
+      }
     }
   })
 
-  it('registers strong energy at C4 (midi 60) for a pure 261.63Hz tone', () => {
+  it('registers the C4 (midi 60) bucket as at or near peakMagnitude for a pure 261.63Hz tone', () => {
     const signal = tone(261.63, 0.3)
-    const { frames } = computeSpectrogramFrames(signal, SAMPLE_RATE, PIANO_ROLL_MIN_FREQ, PIANO_ROLL_MAX_FREQ)
-    const midFrame = frames[Math.floor(frames.length / 2)]
-    const c4Bucket = midFrame.buckets.find((b) => b.midi === 60)
+    const { rawFrames, peakMagnitude } = computeSpectrogramFrames(signal, SAMPLE_RATE, PIANO_ROLL_MIN_FREQ, PIANO_ROLL_MAX_FREQ)
+    const midFrame = rawFrames[Math.floor(rawFrames.length / 2)]
+    const c4Bucket = midFrame.find((b) => b.midi === 60)
     expect(c4Bucket).toBeDefined()
-    expect(c4Bucket.value).toBeGreaterThan(200) // near the peak byte value (255), since this tone dominates the track
+    expect(c4Bucket.value / peakMagnitude).toBeGreaterThan(0.9) // this tone dominates the track
+  })
+})
+
+describe('scaleFrames', () => {
+  function rawBucket(midi, value) {
+    return { midi, lowFreq: 0, highFreq: 0, value }
+  }
+
+  it('applies magnitudeToByte to every bucket of every frame with the given gain/range', () => {
+    const rawFrames = [
+      [rawBucket(60, 10), rawBucket(61, 5)],
+      [rawBucket(60, 2), rawBucket(61, 10)],
+    ]
+    const peakMagnitude = 10
+    const scaled = scaleFrames(rawFrames, peakMagnitude, DEFAULT_GAIN_DB, DEFAULT_RANGE_DB)
+
+    expect(scaled.length).toBe(2)
+    for (let f = 0; f < rawFrames.length; f++) {
+      for (let b = 0; b < rawFrames[f].length; b++) {
+        expect(scaled[f].buckets[b].value).toBe(
+          magnitudeToByte(rawFrames[f][b].value, peakMagnitude, DEFAULT_GAIN_DB, DEFAULT_RANGE_DB),
+        )
+        expect(scaled[f].buckets[b].midi).toBe(rawFrames[f][b].midi)
+      }
+    }
+  })
+
+  it('produces different byte values for the same raw data under different gain/range', () => {
+    const rawFrames = [[rawBucket(60, 3)]]
+    const low = scaleFrames(rawFrames, 10, 0, 80)[0].buckets[0].value
+    const high = scaleFrames(rawFrames, 10, 20, 80)[0].buckets[0].value
+    expect(high).toBeGreaterThan(low)
   })
 })
 

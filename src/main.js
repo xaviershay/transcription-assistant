@@ -8,6 +8,7 @@ import { mixToMono, computeSpectralFlux, pickOnsets } from './onsets.js'
 import { computePeakGain, applyGain, encodeWav } from './normalize.js'
 import {
   computeSpectrogramFrames,
+  scaleFrames,
   frameRangeForTime,
   drawPianoRollSlice,
   drawPianoRollLabels,
@@ -36,15 +37,28 @@ const { wavesurfer, regions } = createWaveSurfer(waveformContainer)
 
 const pianoRollCanvas = document.getElementById('piano-roll')
 const pianoRollLabelsCanvas = document.getElementById('piano-roll-labels')
-let pianoRollData = null
+const pianoRollGainSlider = document.getElementById('piano-roll-gain')
+const pianoRollGainLabel = document.getElementById('piano-roll-gain-label')
+const pianoRollRangeSlider = document.getElementById('piano-roll-range')
+const pianoRollRangeLabel = document.getElementById('piano-roll-range-label')
+
+let pianoRollData = null // { rawFrames, peakMagnitude, hopSize, sampleRate } - computed once per track
+let pianoRollScaledFrames = null // rawFrames remapped through the current gain/range, cheap to redo on slider input
+let pianoRollGainDB = Number(pianoRollGainSlider.value)
+let pianoRollRangeDB = Number(pianoRollRangeSlider.value)
 let visibleFrameRange = { startFrame: 0, endFrame: 0 }
 let visibleTimeRange = { startTime: 0, endTime: 0 }
 
-function redrawPianoRollSlice() {
+function rescalePianoRollFrames() {
   if (!pianoRollData) return
+  pianoRollScaledFrames = scaleFrames(pianoRollData.rawFrames, pianoRollData.peakMagnitude, pianoRollGainDB, pianoRollRangeDB)
+}
+
+function redrawPianoRollSlice() {
+  if (!pianoRollScaledFrames) return
   drawPianoRollSlice(
     pianoRollCanvas,
-    pianoRollData.frames,
+    pianoRollScaledFrames,
     visibleFrameRange.startFrame,
     visibleFrameRange.endFrame,
     PIANO_ROLL_MIN_MIDI,
@@ -69,10 +83,24 @@ function updatePianoRollView(startTime, endTime) {
     endTime,
     pianoRollData.hopSize,
     pianoRollData.sampleRate,
-    pianoRollData.frames.length,
+    pianoRollData.rawFrames.length,
   )
   redrawPianoRollSlice()
 }
+
+pianoRollGainSlider.addEventListener('input', () => {
+  pianoRollGainDB = Number(pianoRollGainSlider.value)
+  pianoRollGainLabel.textContent = `${pianoRollGainDB} dB`
+  rescalePianoRollFrames()
+  redrawPianoRollSlice()
+})
+
+pianoRollRangeSlider.addEventListener('input', () => {
+  pianoRollRangeDB = Number(pianoRollRangeSlider.value)
+  pianoRollRangeLabel.textContent = `${pianoRollRangeDB} dB`
+  rescalePianoRollFrames()
+  redrawPianoRollSlice()
+})
 
 function getVisibleTimeRange() {
   const scrollLeft = wavesurfer.getScroll()
@@ -123,6 +151,7 @@ wavesurfer.on('ready', () => {
     }
     const mono = mixToMono(channelData)
     pianoRollData = computeSpectrogramFrames(mono, audioBuffer.sampleRate, PIANO_ROLL_MIN_FREQ, PIANO_ROLL_MAX_FREQ)
+    rescalePianoRollFrames()
     const { startTime, endTime } = getVisibleTimeRange()
     updatePianoRollView(startTime, endTime)
   }
@@ -414,7 +443,15 @@ function resetOnDoubleClick(slider) {
   })
 }
 
-for (const slider of [tempoSlider, subdivisionsSlider, speedInput, volumeInput, sensitivitySlider]) {
+for (const slider of [
+  tempoSlider,
+  subdivisionsSlider,
+  speedInput,
+  volumeInput,
+  sensitivitySlider,
+  pianoRollGainSlider,
+  pianoRollRangeSlider,
+]) {
   resetOnDoubleClick(slider)
 }
 

@@ -56,6 +56,15 @@
         <ul id="selections-list"></ul>
       </section>
 
+      <section id="piano-roll-controls" class="panel">
+        <label for="piano-roll-gain">Gain</label>
+        <input type="range" id="piano-roll-gain" min="0" max="40" step="1" value="20" />
+        <span id="piano-roll-gain-label">20 dB</span>
+        <label for="piano-roll-range">Range</label>
+        <input type="range" id="piano-roll-range" min="20" max="100" step="5" value="80" />
+        <span id="piano-roll-range-label">80 dB</span>
+      </section>
+
       <section id="piano-roll-section">
         <canvas id="piano-roll" height="400"></canvas>
         <canvas id="piano-roll-labels" height="24"></canvas>

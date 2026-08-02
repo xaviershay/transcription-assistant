@@ -1,4 +1,4 @@
-import { computeNoteBuckets, computePeakMidis } from './spectrum-bars.js'
+import { computeNoteBuckets } from './spectrum-bars.js'
 import { iterateMagnitudeFrames, HOP_SIZE } from './onsets.js'
 import { frequencyFromMidi, noteNameFromMidi, labelStep } from './notes.js'
 
@@ -7,13 +7,21 @@ export const PIANO_ROLL_MAX_MIDI = 96 // C7
 export const PIANO_ROLL_MIN_FREQ = frequencyFromMidi(PIANO_ROLL_MIN_MIDI)
 export const PIANO_ROLL_MAX_FREQ = frequencyFromMidi(PIANO_ROLL_MAX_MIDI)
 
-const PEAK_MARGIN_ABOVE_AVERAGE = 40
-const DB_FLOOR = -80 // dB below the track's single loudest bucket; quieter maps to 0
+// Matches the wavesurfer Spectrogram plugin's own gainDB/rangeDB convention
+// (the one this piano roll replaced): gainDB shifts how far below the
+// track's peak magnitude counts as "white" - 0 means only the peak itself is
+// white, higher values let quieter content reach full brightness too.
+// rangeDB is how many dB below that white point fall all the way to black -
+// smaller means higher contrast (a narrower band of loudness shown at all),
+// larger means a more gradual falloff.
+export const DEFAULT_GAIN_DB = 20
+export const DEFAULT_RANGE_DB = 80
 
-export function magnitudeToByte(magnitude, peakMagnitude) {
+export function magnitudeToByte(magnitude, peakMagnitude, gainDB, rangeDB) {
   if (peakMagnitude <= 0 || magnitude <= 0) return 0
   const db = 20 * Math.log10(magnitude / peakMagnitude)
-  return Math.round(255 * Math.max(0, (db - DB_FLOOR) / -DB_FLOOR))
+  const value01 = Math.min(1, Math.max(0, (db + gainDB + rangeDB) / rangeDB))
+  return Math.round(255 * value01)
 }
 
 export function computeSpectrogramFrames(samples, sampleRate, minFreq, maxFreq) {
@@ -29,19 +37,22 @@ export function computeSpectrogramFrames(samples, sampleRate, minFreq, maxFreq) 
     rawFrames.push(buckets)
   }
 
-  const frames = rawFrames.map((buckets) => {
-    const scaledBuckets = buckets.map((bucket) => ({
-      ...bucket,
-      value: magnitudeToByte(bucket.value, peakMagnitude),
-    }))
-    return { buckets: scaledBuckets, peakMidis: new Set(computePeakMidis(scaledBuckets, PEAK_MARGIN_ABOVE_AVERAGE)) }
-  })
+  return { rawFrames, peakMagnitude, hopSize: HOP_SIZE, sampleRate }
+}
 
-  return { frames, hopSize: HOP_SIZE, sampleRate }
+// Separated from computeSpectrogramFrames so changing gain/range (e.g. from
+// UI sliders) only re-runs this cheap per-bucket remapping, not the whole
+// FFT/bucketing pass over the entire track.
+export function scaleFrames(rawFrames, peakMagnitude, gainDB, rangeDB) {
+  return rawFrames.map((buckets) => ({
+    buckets: buckets.map((bucket) => ({
+      ...bucket,
+      value: magnitudeToByte(bucket.value, peakMagnitude, gainDB, rangeDB),
+    })),
+  }))
 }
 
 const BACKGROUND_COLOR = '#121212'
-const PEAK_COLOR = '#388e3c'
 const BAR_COLOR_RGB = '79, 109, 245' // #4f6df5
 const LABEL_COLOR = '#f0f0f0'
 
@@ -68,7 +79,7 @@ export function drawPianoRollSlice(canvas, frames, startFrame, endFrame, minMidi
     for (const bucket of frame.buckets) {
       if (bucket.midi < minMidi || bucket.midi > maxMidi) continue
       const x = (bucket.midi - minMidi) * colWidth
-      ctx.fillStyle = frame.peakMidis.has(bucket.midi) ? PEAK_COLOR : `rgba(${BAR_COLOR_RGB}, ${bucket.value / 255})`
+      ctx.fillStyle = `rgba(${BAR_COLOR_RGB}, ${bucket.value / 255})`
       ctx.fillRect(x, y, colWidth, rowHeight)
     }
   }
