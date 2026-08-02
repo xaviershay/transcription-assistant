@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { magnitudeToByte, computeSpectrogramFrames, PIANO_ROLL_MIN_FREQ, PIANO_ROLL_MAX_FREQ } from './pianoRoll.js'
+import { frameRangeForTime } from './pianoRoll.js'
 
 const SAMPLE_RATE = 44100
 
@@ -67,5 +68,23 @@ describe('computeSpectrogramFrames', () => {
     const c4Bucket = midFrame.buckets.find((b) => b.midi === 60)
     expect(c4Bucket).toBeDefined()
     expect(c4Bucket.value).toBeGreaterThan(200) // near the peak byte value (255), since this tone dominates the track
+  })
+})
+
+describe('frameRangeForTime', () => {
+  it('maps a time range to the corresponding frame index range', () => {
+    const { startFrame, endFrame } = frameRangeForTime(1, 2, 512, 44100, 1000)
+    expect(startFrame).toBe(Math.floor((1 * 44100) / 512))
+    expect(endFrame).toBe(Math.ceil((2 * 44100) / 512))
+  })
+
+  it('clamps startFrame to 0 for a negative start time', () => {
+    const { startFrame } = frameRangeForTime(-5, 1, 512, 44100, 1000)
+    expect(startFrame).toBe(0)
+  })
+
+  it('clamps endFrame to totalFrames - 1', () => {
+    const { endFrame } = frameRangeForTime(0, 9999, 512, 44100, 100)
+    expect(endFrame).toBe(99)
   })
 })
