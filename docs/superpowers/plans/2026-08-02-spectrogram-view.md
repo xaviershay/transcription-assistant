@@ -194,7 +194,7 @@ Run: `bin/dev`, open http://localhost:5173.
 1. Upload an audio file. Confirm a spectrogram appears below the Selections section, with visible frequency-axis labels.
 2. Confirm the spectrogram's colors follow a purple → teal → yellow progression (the `roseus` colormap) rather than a single-hue ramp.
 3. Zoom the main waveform in/out (mouse wheel over the waveform) — confirm the spectrogram's visible time window zooms in sync.
-4. Pan the main waveform (shift+wheel, or scroll) — confirm the spectrogram pans in sync, showing the same time range as the waveform.
+4. Pan the main waveform (shift+wheel, or scroll) — confirm the spectrogram pans in sync, showing the same time range as the waveform (expected to fail at this point — see Post-plan correction).
 5. Play the file and confirm the spectrogram doesn't need to be re-triggered — it was already fully rendered from upload, independent of playback.
 6. Confirm no console errors during upload/zoom/pan.
 
@@ -219,10 +219,12 @@ and confirmed not fixable by switching to the newer
 investigation and evidence in the design spec's "Correction" section
 (`docs/superpowers/specs/2026-08-02-spectrogram-view-design.md`).
 
-This invalidates Global Constraint #2 above ("no code should manually
-listen to scroll/zoom events") — that constraint was based on an
-assumption Task 1's own verification disproved. Task 2 below adds the
-required manual sync.
+This invalidated Global Constraint #2 above, which originally asserted that
+sync with the waveform (including pan/playback-follow) was fully automatic
+and that no code should manually listen to scroll/zoom events — an assumption
+Task 1's own verification disproved. That constraint has since been rewritten
+in place (see its current text above) to instead require the manual
+`scroll`/`redraw` wiring Task 2 below adds.
 
 ### Task 2: Manually sync the spectrogram's scroll position
 
