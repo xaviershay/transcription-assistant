@@ -1,5 +1,5 @@
-const FFT_SIZE = 2048
-const HOP_SIZE = 512
+export const FFT_SIZE = 2048
+export const HOP_SIZE = 512
 const MIN_ONSET_GAP_SECONDS = 0.06
 const MIN_ONSET_START_SECONDS = 0.03
 const LOCAL_MEAN_WINDOW_FRAMES = 10
@@ -67,6 +67,25 @@ function fft(real, imag) {
         curWi = nextWi
       }
     }
+  }
+}
+
+export function* iterateMagnitudeFrames(samples, { fftSize = FFT_SIZE, hopSize = HOP_SIZE } = {}) {
+  const window = hannWindow(fftSize)
+  const numFrames = Math.max(0, Math.floor((samples.length - fftSize) / hopSize) + 1)
+  for (let frame = 0; frame < numFrames; frame++) {
+    const offset = frame * hopSize
+    const real = new Float64Array(fftSize)
+    const imag = new Float64Array(fftSize)
+    for (let i = 0; i < fftSize; i++) {
+      real[i] = samples[offset + i] * window[i]
+    }
+    fft(real, imag)
+    const magnitudes = new Float32Array(fftSize / 2)
+    for (let bin = 0; bin < fftSize / 2; bin++) {
+      magnitudes[bin] = Math.hypot(real[bin], imag[bin])
+    }
+    yield magnitudes
   }
 }
 

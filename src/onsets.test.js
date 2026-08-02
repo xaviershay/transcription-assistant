@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { mixToMono, computeSpectralFlux, pickOnsets, detectOnsets } from './onsets.js'
+import { mixToMono, computeSpectralFlux, pickOnsets, detectOnsets, iterateMagnitudeFrames } from './onsets.js'
 
 const SAMPLE_RATE = 44100
 
@@ -81,5 +81,41 @@ describe('two-stage split (computeSpectralFlux + pickOnsets)', () => {
 
     expectOnsetsNear(pickOnsets(fluxResult, 1.0), [0.2, 0.55])
     expectOnsetsNear(pickOnsets(fluxResult, 3.0), [0.2, 0.55])
+  })
+})
+
+describe('iterateMagnitudeFrames', () => {
+  it('yields one Float32Array per frame, each of length fftSize/2', () => {
+    const signal = tone(440, 0.2)
+    const frames = [...iterateMagnitudeFrames(signal)]
+    expect(frames.length).toBeGreaterThan(0)
+    for (const frame of frames) {
+      expect(frame).toBeInstanceOf(Float32Array)
+      expect(frame.length).toBe(1024) // default FFT_SIZE (2048) / 2
+    }
+  })
+
+  it('places the loudest bin near the expected frequency for a pure tone', () => {
+    const freq = 440
+    const signal = tone(freq, 0.2)
+    const frames = [...iterateMagnitudeFrames(signal)]
+    const midFrame = frames[Math.floor(frames.length / 2)]
+    let peakBin = 0
+    for (let i = 1; i < midFrame.length; i++) {
+      if (midFrame[i] > midFrame[peakBin]) peakBin = i
+    }
+    const binHz = SAMPLE_RATE / 2048 // default fftSize
+    expect(Math.abs(peakBin * binHz - freq)).toBeLessThan(binHz)
+  })
+
+  it('respects a custom fftSize/hopSize', () => {
+    const signal = tone(440, 0.2)
+    const frames = [...iterateMagnitudeFrames(signal, { fftSize: 512, hopSize: 256 })]
+    expect(frames[0].length).toBe(256)
+  })
+
+  it('yields zero frames for a signal shorter than one fftSize window', () => {
+    const frames = [...iterateMagnitudeFrames(new Float32Array(100))]
+    expect(frames).toEqual([])
   })
 })
