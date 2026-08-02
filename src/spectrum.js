@@ -26,7 +26,7 @@ const EQ_COLOR = '#f5a64f'
 const EQ_BAND_COLORS = ['#f5a64f', '#4fc3f5', '#f54f8c']
 const EQ_HIT_RADIUS = 8
 const PEAK_COLOR = '#388e3c'
-const PEAK_THRESHOLD = 90
+const PEAK_MARGIN_ABOVE_AVERAGE = 40
 
 const BAND_TYPES = ['lowshelf', 'peaking', 'highshelf']
 const SHELF_Q = 1
@@ -227,7 +227,7 @@ export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) 
     ctx.fillRect(0, 0, canvas.width, canvas.height)
 
     const buckets = computeNoteBuckets(freqData, binHz, viewMinFreq, viewMaxFreq)
-    const peakMidis = new Set(computePeakMidis(buckets, PEAK_THRESHOLD))
+    const peakMidis = new Set(computePeakMidis(buckets, PEAK_MARGIN_ABOVE_AVERAGE))
     for (const bucket of buckets) {
       const x1 = xForFreq(bucket.lowFreq)
       const x2 = xForFreq(bucket.highFreq)

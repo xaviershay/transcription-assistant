@@ -7,7 +7,7 @@ export const PIANO_ROLL_MAX_MIDI = 96 // C7
 export const PIANO_ROLL_MIN_FREQ = frequencyFromMidi(PIANO_ROLL_MIN_MIDI)
 export const PIANO_ROLL_MAX_FREQ = frequencyFromMidi(PIANO_ROLL_MAX_MIDI)
 
-const PEAK_THRESHOLD = 90
+const PEAK_MARGIN_ABOVE_AVERAGE = 40
 const DB_FLOOR = -80 // dB below the track's single loudest bucket; quieter maps to 0
 
 export function magnitudeToByte(magnitude, peakMagnitude) {
@@ -34,7 +34,7 @@ export function computeSpectrogramFrames(samples, sampleRate, minFreq, maxFreq) 
       ...bucket,
       value: magnitudeToByte(bucket.value, peakMagnitude),
     }))
-    return { buckets: scaledBuckets, peakMidis: new Set(computePeakMidis(scaledBuckets, PEAK_THRESHOLD)) }
+    return { buckets: scaledBuckets, peakMidis: new Set(computePeakMidis(scaledBuckets, PEAK_MARGIN_ABOVE_AVERAGE)) }
   })
 
   return { frames, hopSize: HOP_SIZE, sampleRate }
@@ -112,6 +112,21 @@ export function drawBeatGrid(canvas, startTime, endTime, bpm, subdivisions, offs
       ctx.fillText(String(beatNumber), 2, y + 1)
     }
   }
+}
+
+const PLAYHEAD_COLOR = '#ffffff'
+
+export function drawPlayhead(canvas, currentTime, startTime, endTime) {
+  if (!(endTime > startTime)) return
+  if (currentTime < startTime || currentTime > endTime) return
+  const ctx = canvas.getContext('2d')
+  const y = ((currentTime - startTime) / (endTime - startTime)) * canvas.height
+  ctx.strokeStyle = PLAYHEAD_COLOR
+  ctx.lineWidth = 2
+  ctx.beginPath()
+  ctx.moveTo(0, y)
+  ctx.lineTo(canvas.width, y)
+  ctx.stroke()
 }
 
 export function drawPianoRollLabels(canvas, minMidi, maxMidi) {

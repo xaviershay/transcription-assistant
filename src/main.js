@@ -12,6 +12,7 @@ import {
   drawPianoRollSlice,
   drawPianoRollLabels,
   drawBeatGrid,
+  drawPlayhead,
   PIANO_ROLL_MIN_MIDI,
   PIANO_ROLL_MAX_MIDI,
   PIANO_ROLL_MIN_FREQ,
@@ -55,6 +56,9 @@ function redrawPianoRollSlice() {
   // piano roll's vertical time axis instead of vertical ticks against the
   // waveform's horizontal one.
   drawBeatGrid(pianoRollCanvas, visibleTimeRange.startTime, visibleTimeRange.endTime, beatBpm, beatSubdivisions, beatOffset)
+  // Mirrors the waveform's own cursor, drawn as a horizontal line at the
+  // current playback position within whatever time range is visible.
+  drawPlayhead(pianoRollCanvas, wavesurfer.getCurrentTime(), visibleTimeRange.startTime, visibleTimeRange.endTime)
 }
 
 function updatePianoRollView(startTime, endTime) {
@@ -95,6 +99,9 @@ wavesurfer.on('redraw', () => {
   const { startTime, endTime } = getVisibleTimeRange()
   updatePianoRollView(startTime, endTime)
 })
+// The visible time range itself doesn't change here - just re-draw the
+// (unchanged) current slice so the playhead line inside it tracks playback.
+wavesurfer.on('timeupdate', () => redrawPianoRollSlice())
 
 wavesurfer.on('error', (error) => {
   showToast(`Could not load audio file: ${error.message}`)

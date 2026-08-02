@@ -22,11 +22,23 @@ export function computeNoteBuckets(freqData, binHz, minFreq, maxFreq) {
   return buckets
 }
 
-export function computePeakMidis(buckets, threshold) {
+export function computePeakMidis(buckets, minMarginAboveAverage) {
+  if (buckets.length === 0) return []
+
+  // A bucket must clear this frame's own average by a real margin, not just
+  // an absolute floor - "locally highest" alone isn't enough, since a flat or
+  // noisy region (common at low frequencies, where coarse FFT resolution
+  // means several adjacent semitone buckets read nearly the same
+  // insignificant value) can otherwise flag almost every bucket as a "peak"
+  // purely from small alternations, with nothing musically significant
+  // happening at all.
+  const average = buckets.reduce((sum, b) => sum + b.value, 0) / buckets.length
+  const requiredValue = average + minMarginAboveAverage
+
   const peaks = []
   for (let i = 0; i < buckets.length; i++) {
     const b = buckets[i]
-    if (b.value < threshold) continue
+    if (b.value < requiredValue) continue
     const prev = buckets[i - 1]
     const next = buckets[i + 1]
     if (prev && b.value < prev.value) continue
