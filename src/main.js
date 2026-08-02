@@ -542,10 +542,29 @@ resetEqBtn.addEventListener('click', () => {
   saveCurrentSettings()
 })
 
+// The piano roll normally follows the waveform's own zoom/pan (via the
+// wavesurfer 'scroll'/'redraw' listeners above), which shows too much at
+// once when zoomed out. Activating a region instead focuses the piano roll
+// on just that region's bounds - a tighter, more useful view for the
+// selection you're actually working on - and clears back to following the
+// waveform once nothing is active.
+function setActiveRegion(id) {
+  activeRegionId = id
+  if (id) {
+    const region = regions.getRegions().find((r) => r.id === id)
+    if (region) {
+      updatePianoRollView(region.start, region.end)
+      return
+    }
+  }
+  const { startTime, endTime } = getVisibleTimeRange()
+  updatePianoRollView(startTime, endTime)
+}
+
 function activateRegion(id) {
   const region = regions.getRegions().find((r) => r.id === id)
   if (!region) return
-  activeRegionId = id
+  setActiveRegion(id)
   activeLabel.textContent = `Looping: ${region.start.toFixed(2)}s – ${region.end.toFixed(2)}s`
   refreshSelectionsList()
   region.play()
@@ -557,7 +576,7 @@ regions.on('region-created', () => refreshSelectionsList())
 
 regions.on('region-removed', (region) => {
   if (region.id === activeRegionId) {
-    activeRegionId = null
+    setActiveRegion(null)
     activeLabel.textContent = ''
   }
   refreshSelectionsList()
@@ -566,6 +585,12 @@ regions.on('region-removed', (region) => {
 regions.on('region-clicked', (region, e) => {
   e.stopPropagation()
   activateRegion(region.id)
+})
+
+regions.on('region-updated', (region) => {
+  if (region.id === activeRegionId) {
+    updatePianoRollView(region.start, region.end)
+  }
 })
 
 regions.on('region-out', (region) => {
@@ -583,7 +608,7 @@ wavesurfer.on('interaction', (newTime) => {
     rebuildTimeline()
     saveCurrentSettings()
   }
-  activeRegionId = null
+  setActiveRegion(null)
   activeLabel.textContent = ''
   refreshSelectionsList()
 })
