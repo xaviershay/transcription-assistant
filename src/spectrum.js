@@ -43,9 +43,13 @@ function responseDbForBand(index, freq, filter, sampleRate) {
 
 export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) {
   function syncCanvasWidth() {
-    const width = Math.round(canvas.getBoundingClientRect().width)
-    if (width > 0 && canvas.width !== width) {
+    const dpr = window.devicePixelRatio || 1
+    const rect = canvas.getBoundingClientRect()
+    const width = Math.round(rect.width * dpr)
+    const height = Math.round(rect.height * dpr)
+    if (width > 0 && (canvas.width !== width || canvas.height !== height)) {
       canvas.width = width
+      canvas.height = height
     }
   }
   syncCanvasWidth()
@@ -166,9 +170,10 @@ export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) 
   }
 
   function findNearDotIndex(x, y) {
+    const dpr = window.devicePixelRatio || 1
     for (let i = 0; i < filters.length; i++) {
       const dot = dotPosition(i)
-      if (isNearDot(x, y, dot.x, dot.y, EQ_HIT_RADIUS)) return i
+      if (isNearDot(x, y, dot.x, dot.y, EQ_HIT_RADIUS * dpr)) return i
     }
     return null
   }
@@ -221,6 +226,7 @@ export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) 
   )
 
   function render() {
+    const dpr = window.devicePixelRatio || 1
     analyser.getByteFrequencyData(freqData)
 
     ctx.fillStyle = BACKGROUND_COLOR
@@ -232,32 +238,32 @@ export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) 
       const x1 = xForFreq(bucket.lowFreq)
       const x2 = xForFreq(bucket.highFreq)
       const barHeight = (bucket.value / 255) * canvas.height
-      const barWidth = Math.max(0, x2 - x1 - 1)
+      const barWidth = Math.max(0, x2 - x1 - dpr)
       const isPeak = peakMidis.has(bucket.midi)
       ctx.fillStyle = isPeak ? PEAK_COLOR : BAR_COLOR
       ctx.fillRect(x1, canvas.height - barHeight, barWidth, barHeight)
       if (isPeak) {
-        ctx.font = 'bold 12px sans-serif'
+        ctx.font = `bold ${12 * dpr}px sans-serif`
         ctx.textAlign = 'center'
-        const labelY = Math.max(12, canvas.height - barHeight - 4)
+        const labelY = Math.max(12 * dpr, canvas.height - barHeight - 4 * dpr)
         ctx.fillText(noteNameFromMidi(bucket.midi), (x1 + x2) / 2, labelY)
       }
     }
 
     ctx.fillStyle = LABEL_COLOR
-    ctx.font = '13px sans-serif'
+    ctx.font = `${13 * dpr}px sans-serif`
     ctx.textAlign = 'center'
-    const step = labelStep(midiFromFrequency(viewMaxFreq) - midiFromFrequency(viewMinFreq), canvas.width)
+    const step = labelStep(midiFromFrequency(viewMaxFreq) - midiFromFrequency(viewMinFreq), canvas.width, 50 * dpr)
     const minMidi = Math.ceil(midiFromFrequency(viewMinFreq))
     const maxMidi = Math.floor(midiFromFrequency(viewMaxFreq))
     for (let midi = minMidi; midi <= maxMidi; midi += step) {
       const freq = 440 * Math.pow(2, (midi - 69) / 12)
       const x = xForFreq(freq)
-      ctx.fillText(frequencyToNoteName(freq), x, canvas.height - 2)
+      ctx.fillText(frequencyToNoteName(freq), x, canvas.height - 2 * dpr)
     }
 
     ctx.strokeStyle = EQ_COLOR
-    ctx.lineWidth = 2
+    ctx.lineWidth = 2 * dpr
     ctx.beginPath()
     for (let x = 0; x <= canvas.width; x += 2) {
       const freq = freqForX(x)
@@ -276,7 +282,7 @@ export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) 
       const dotY = gainToY(f.gain.value, canvas.height)
       ctx.fillStyle = EQ_BAND_COLORS[i]
       ctx.beginPath()
-      ctx.arc(dotX, dotY, 5, 0, 2 * Math.PI)
+      ctx.arc(dotX, dotY, 5 * dpr, 0, 2 * Math.PI)
       ctx.fill()
     })
   }

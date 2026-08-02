@@ -117,10 +117,17 @@ function getVisibleTimeRange() {
 }
 
 function syncPianoRollCanvasWidth() {
-  const width = Math.round(pianoRollCanvas.getBoundingClientRect().width)
-  if (width > 0 && pianoRollCanvas.width !== width) {
+  const dpr = window.devicePixelRatio || 1
+  const rect = pianoRollCanvas.getBoundingClientRect()
+  const labelsRect = pianoRollLabelsCanvas.getBoundingClientRect()
+  const width = Math.round(rect.width * dpr)
+  const height = Math.round(rect.height * dpr)
+  const labelsHeight = Math.round(labelsRect.height * dpr)
+  if (width > 0 && (pianoRollCanvas.width !== width || pianoRollCanvas.height !== height)) {
     pianoRollCanvas.width = width
+    pianoRollCanvas.height = height
     pianoRollLabelsCanvas.width = width
+    pianoRollLabelsCanvas.height = labelsHeight
     drawPianoRollLabels(pianoRollLabelsCanvas, PIANO_ROLL_MIN_MIDI, PIANO_ROLL_MAX_MIDI)
     redrawPianoRollSlice()
   }

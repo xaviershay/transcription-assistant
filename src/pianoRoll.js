@@ -129,15 +129,16 @@ export function computeBeatGridLines(startTime, endTime, bpm, subdivisions, offs
 }
 
 export function drawBeatGrid(canvas, startTime, endTime, bpm, subdivisions, offset) {
+  const dpr = window.devicePixelRatio || 1
   const ctx = canvas.getContext('2d')
-  ctx.font = '11px sans-serif'
+  ctx.font = `${11 * dpr}px sans-serif`
   ctx.textAlign = 'left'
   ctx.textBaseline = 'top'
 
   for (const { fraction, isBeat, beatNumber } of computeBeatGridLines(startTime, endTime, bpm, subdivisions, offset)) {
     const y = fraction * canvas.height
     ctx.strokeStyle = isBeat ? 'rgba(230, 230, 230, 0.4)' : 'rgba(230, 230, 230, 0.15)'
-    ctx.lineWidth = 1
+    ctx.lineWidth = dpr
     ctx.beginPath()
     ctx.moveTo(0, y)
     ctx.lineTo(canvas.width, y)
@@ -145,7 +146,7 @@ export function drawBeatGrid(canvas, startTime, endTime, bpm, subdivisions, offs
 
     if (isBeat) {
       ctx.fillStyle = LABEL_COLOR
-      ctx.fillText(String(beatNumber), 2, y + 1)
+      ctx.fillText(String(beatNumber), 2 * dpr, y + dpr)
     }
   }
 }
@@ -155,10 +156,11 @@ const PLAYHEAD_COLOR = '#ffffff'
 export function drawPlayhead(canvas, currentTime, startTime, endTime) {
   if (!(endTime > startTime)) return
   if (currentTime < startTime || currentTime > endTime) return
+  const dpr = window.devicePixelRatio || 1
   const ctx = canvas.getContext('2d')
   const y = ((currentTime - startTime) / (endTime - startTime)) * canvas.height
   ctx.strokeStyle = PLAYHEAD_COLOR
-  ctx.lineWidth = 2
+  ctx.lineWidth = 2 * dpr
   ctx.beginPath()
   ctx.moveTo(0, y)
   ctx.lineTo(canvas.width, y)
@@ -166,17 +168,18 @@ export function drawPlayhead(canvas, currentTime, startTime, endTime) {
 }
 
 export function drawPianoRollLabels(canvas, minMidi, maxMidi) {
+  const dpr = window.devicePixelRatio || 1
   const ctx = canvas.getContext('2d')
   ctx.fillStyle = BACKGROUND_COLOR
   ctx.fillRect(0, 0, canvas.width, canvas.height)
   ctx.fillStyle = LABEL_COLOR
-  ctx.font = '12px sans-serif'
+  ctx.font = `${12 * dpr}px sans-serif`
   ctx.textAlign = 'center'
   ctx.textBaseline = 'middle'
 
   const numColumns = maxMidi - minMidi + 1
   const colWidth = canvas.width / numColumns
-  const step = labelStep(numColumns, canvas.width)
+  const step = labelStep(numColumns, canvas.width, 50 * dpr)
   for (let midi = minMidi; midi <= maxMidi; midi += step) {
     const x = (midi - minMidi + 0.5) * colWidth
     ctx.fillText(noteNameFromMidi(midi), x, canvas.height / 2)
