@@ -9,6 +9,7 @@ import { computePeakGain, applyGain, encodeWav } from './normalize.js'
 import { computeFileHash, loadSettings, saveSettings } from './persistence.js'
 import { saveCurrentAudio, loadCurrentAudio } from './audioStore.js'
 import { createIndexedDbStore } from './indexedDbStore.js'
+import { isRecordingSupported, formatRecordingLabel, startRecording } from './recording.js'
 import { defaultEqBands } from './eq.js'
 
 const uploadInput = document.getElementById('upload')
@@ -123,6 +124,58 @@ uploadInput.addEventListener('change', async () => {
     await loadAudio(stored.blob, stored.label)
   }
 })()
+
+const recordBtn = document.getElementById('record-btn')
+let activeRecording = null
+let recordingTimer = null
+
+if (!isRecordingSupported()) {
+  recordBtn.disabled = true
+  recordBtn.title = 'Recording tab/system audio is not supported in this browser.'
+}
+
+function formatElapsed(startedAt) {
+  const elapsed = Math.floor((Date.now() - startedAt) / 1000)
+  const mm = String(Math.floor(elapsed / 60)).padStart(2, '0')
+  const ss = String(elapsed % 60).padStart(2, '0')
+  return `${mm}:${ss}`
+}
+
+async function stopActiveRecording() {
+  const recording = activeRecording
+  activeRecording = null
+  clearInterval(recordingTimer)
+  recordBtn.textContent = 'Record'
+
+  const blob = await recording.stop()
+  const label = formatRecordingLabel()
+  await loadAudio(blob, label)
+  saveCurrentAudio(dbStore, blob, label)
+}
+
+recordBtn.addEventListener('click', async () => {
+  if (activeRecording) {
+    await stopActiveRecording()
+    return
+  }
+
+  let recording
+  try {
+    recording = await startRecording()
+  } catch (err) {
+    if (err.name === 'NotAllowedError' || err.name === 'AbortError') return
+    uploadError.textContent = err.message
+    uploadError.hidden = false
+    return
+  }
+
+  activeRecording = recording
+  const startedAt = Date.now()
+  recordBtn.textContent = `Stop (${formatElapsed(startedAt)})`
+  recordingTimer = setInterval(() => {
+    recordBtn.textContent = `Stop (${formatElapsed(startedAt)})`
+  }, 1000)
+})
 
 const ZOOM_FACTOR = 1.2
 const MIN_PX_PER_SEC = 10
