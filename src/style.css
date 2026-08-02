@@ -57,7 +57,22 @@ h2 {
 }
 
 #piano-roll-section {
+  position: relative;
   margin-block: 0.5rem;
+}
+
+#piano-roll-tooltip {
+  position: absolute;
+  top: 4px;
+  transform: translateX(-50%);
+  background: #1a1a1a;
+  border: 1px solid #3a3a3a;
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+  font-size: 0.8rem;
+  color: #f0f0f0;
+  pointer-events: none;
+  white-space: nowrap;
 }
 
 #piano-roll {

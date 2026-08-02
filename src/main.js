@@ -5,6 +5,7 @@ import { createSpectrumAnalyser } from './spectrum.js'
 import { sortRegionsByStart, getAdjacentRegionId } from './selections.js'
 import { renderSelectionsList } from './selectionsList.js'
 import { mixToMono, computeSpectralFlux, pickOnsets } from './onsets.js'
+import { noteNameFromMidi } from './notes.js'
 import { computePeakGain, applyGain, encodeWav } from './normalize.js'
 import {
   computeSpectrogramFrames,
@@ -41,6 +42,7 @@ const pianoRollGainSlider = document.getElementById('piano-roll-gain')
 const pianoRollGainLabel = document.getElementById('piano-roll-gain-label')
 const pianoRollRangeSlider = document.getElementById('piano-roll-range')
 const pianoRollRangeLabel = document.getElementById('piano-roll-range-label')
+const pianoRollTooltip = document.getElementById('piano-roll-tooltip')
 
 let pianoRollData = null // { rawFrames, peakMagnitude, hopSize, sampleRate } - computed once per track
 let pianoRollScaledFrames = null // rawFrames remapped through the current gain/range, cheap to redo on slider input
@@ -121,6 +123,32 @@ function syncPianoRollCanvasWidth() {
 }
 syncPianoRollCanvasWidth()
 window.addEventListener('resize', syncPianoRollCanvasWidth)
+
+function midiForPianoRollX(canvasX) {
+  const numColumns = PIANO_ROLL_MAX_MIDI - PIANO_ROLL_MIN_MIDI + 1
+  const colWidth = pianoRollCanvas.width / numColumns
+  const midi = PIANO_ROLL_MIN_MIDI + Math.floor(canvasX / colWidth)
+  return Math.min(PIANO_ROLL_MAX_MIDI, Math.max(PIANO_ROLL_MIN_MIDI, midi))
+}
+
+pianoRollCanvas.addEventListener('mousemove', (e) => {
+  const rect = pianoRollCanvas.getBoundingClientRect()
+  const canvasX = ((e.clientX - rect.left) / rect.width) * pianoRollCanvas.width
+  const midi = midiForPianoRollX(canvasX)
+
+  // Snap the tooltip to the hovered column's center rather than the raw
+  // cursor position, so it reads as "which note is this column" instead of
+  // jittering as the mouse moves within the same column.
+  const numColumns = PIANO_ROLL_MAX_MIDI - PIANO_ROLL_MIN_MIDI + 1
+  const colCenterFraction = (midi - PIANO_ROLL_MIN_MIDI + 0.5) / numColumns
+  pianoRollTooltip.textContent = noteNameFromMidi(midi)
+  pianoRollTooltip.style.left = `${colCenterFraction * rect.width}px`
+  pianoRollTooltip.hidden = false
+})
+
+pianoRollCanvas.addEventListener('mouseleave', () => {
+  pianoRollTooltip.hidden = true
+})
 
 wavesurfer.on('scroll', (startTime, endTime) => updatePianoRollView(startTime, endTime))
 wavesurfer.on('redraw', () => {

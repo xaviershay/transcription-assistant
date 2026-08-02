@@ -53,8 +53,33 @@ export function scaleFrames(rawFrames, peakMagnitude, gainDB, rangeDB) {
 }
 
 const BACKGROUND_COLOR = '#121212'
-const BAR_COLOR_RGB = '79, 109, 245' // #4f6df5
 const LABEL_COLOR = '#f0f0f0'
+
+// Classic thermal-style gradient: black (quiet) -> blue -> red -> yellow ->
+// white (loudest), evenly spaced across the 0-255 byte range.
+const COLOR_STOPS = [
+  { stop: 0, color: [0, 0, 0] },
+  { stop: 64, color: [0, 0, 255] },
+  { stop: 128, color: [255, 0, 0] },
+  { stop: 192, color: [255, 255, 0] },
+  { stop: 255, color: [255, 255, 255] },
+]
+
+export function colorForByte(value) {
+  const clamped = Math.min(255, Math.max(0, value))
+  for (let i = 0; i < COLOR_STOPS.length - 1; i++) {
+    const a = COLOR_STOPS[i]
+    const b = COLOR_STOPS[i + 1]
+    if (clamped >= a.stop && clamped <= b.stop) {
+      const t = (clamped - a.stop) / (b.stop - a.stop)
+      const r = Math.round(a.color[0] + (b.color[0] - a.color[0]) * t)
+      const g = Math.round(a.color[1] + (b.color[1] - a.color[1]) * t)
+      const bch = Math.round(a.color[2] + (b.color[2] - a.color[2]) * t)
+      return `rgb(${r}, ${g}, ${bch})`
+    }
+  }
+  return 'rgb(255, 255, 255)'
+}
 
 export function frameRangeForTime(startTime, endTime, hopSize, sampleRate, totalFrames) {
   const startFrame = Math.max(0, Math.floor((startTime * sampleRate) / hopSize))
@@ -79,7 +104,7 @@ export function drawPianoRollSlice(canvas, frames, startFrame, endFrame, minMidi
     for (const bucket of frame.buckets) {
       if (bucket.midi < minMidi || bucket.midi > maxMidi) continue
       const x = (bucket.midi - minMidi) * colWidth
-      ctx.fillStyle = `rgba(${BAR_COLOR_RGB}, ${bucket.value / 255})`
+      ctx.fillStyle = colorForByte(bucket.value)
       ctx.fillRect(x, y, colWidth, rowHeight)
     }
   }

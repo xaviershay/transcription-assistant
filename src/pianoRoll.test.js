@@ -3,6 +3,7 @@ import {
   magnitudeToByte,
   computeSpectrogramFrames,
   scaleFrames,
+  colorForByte,
   DEFAULT_GAIN_DB,
   DEFAULT_RANGE_DB,
   PIANO_ROLL_MIN_FREQ,
@@ -184,5 +185,38 @@ describe('computeBeatGridLines', () => {
   it('returns no lines for a non-positive bpm or subdivisions', () => {
     expect(computeBeatGridLines(0, 1, 0, 4, 0)).toEqual([])
     expect(computeBeatGridLines(0, 1, 120, 0, 0)).toEqual([])
+  })
+})
+
+describe('colorForByte', () => {
+  it('maps 0 to black', () => {
+    expect(colorForByte(0)).toBe('rgb(0, 0, 0)')
+  })
+
+  it('maps 255 to white', () => {
+    expect(colorForByte(255)).toBe('rgb(255, 255, 255)')
+  })
+
+  it('maps the quarter point to pure blue', () => {
+    // stops: 0 black, 64 blue, 128 red, 192 yellow, 255 white
+    expect(colorForByte(64)).toBe('rgb(0, 0, 255)')
+  })
+
+  it('maps the midpoint to pure red', () => {
+    expect(colorForByte(128)).toBe('rgb(255, 0, 0)')
+  })
+
+  it('maps the three-quarter point to pure yellow', () => {
+    expect(colorForByte(192)).toBe('rgb(255, 255, 0)')
+  })
+
+  it('interpolates linearly between two stops', () => {
+    // halfway between black (0) and blue (64) -> half-intensity blue
+    expect(colorForByte(32)).toBe('rgb(0, 0, 128)')
+  })
+
+  it('clamps values outside 0-255', () => {
+    expect(colorForByte(-10)).toBe('rgb(0, 0, 0)')
+    expect(colorForByte(300)).toBe('rgb(255, 255, 255)')
   })
 })
