@@ -677,9 +677,9 @@ function activateRegion(id) {
   const region = regions.getRegions().find((r) => r.id === id)
   if (!region) return
   setActiveRegion(id)
-  activeLabel.textContent = `Looping: ${region.start.toFixed(2)}s – ${region.end.toFixed(2)}s`
+  activeLabel.textContent = `Selected: ${region.start.toFixed(2)}s – ${region.end.toFixed(2)}s`
   refreshSelectionsList()
-  region.play()
+  wavesurfer.setTime(region.start)
 }
 
 regions.enableDragSelection({ color: 'rgba(79, 109, 245, 0.2)' })
