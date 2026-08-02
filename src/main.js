@@ -1,12 +1,21 @@
 import './style.css'
-import { createWaveSurfer, SPECTROGRAM_MIN_FREQ, SPECTROGRAM_MAX_FREQ } from './waveform.js'
-import { drawSpectrogramLabels } from './spectrogramLabels.js'
+import { createWaveSurfer } from './waveform.js'
 import TimelinePlugin from 'wavesurfer.js/plugins/timeline'
 import { createSpectrumAnalyser } from './spectrum.js'
 import { sortRegionsByStart, getAdjacentRegionId } from './selections.js'
 import { renderSelectionsList } from './selectionsList.js'
 import { mixToMono, computeSpectralFlux, pickOnsets } from './onsets.js'
 import { computePeakGain, applyGain, encodeWav } from './normalize.js'
+import {
+  computeSpectrogramFrames,
+  frameRangeForTime,
+  drawPianoRollSlice,
+  drawPianoRollLabels,
+  PIANO_ROLL_MIN_MIDI,
+  PIANO_ROLL_MAX_MIDI,
+  PIANO_ROLL_MIN_FREQ,
+  PIANO_ROLL_MAX_FREQ,
+} from './pianoRoll.js'
 import { computeFileHash, loadSettings, saveSettings } from './persistence.js'
 import { saveCurrentAudio, loadCurrentAudio } from './audioStore.js'
 import { createIndexedDbStore } from './indexedDbStore.js'
@@ -17,57 +26,66 @@ import { showToast } from './toast.js'
 const uploadInput = document.getElementById('upload')
 const uploadFilename = document.getElementById('upload-filename')
 const waveformContainer = document.getElementById('waveform')
-const spectrogramContainer = document.getElementById('spectrogram')
 const playPauseBtn = document.getElementById('play-pause')
 const spectrumCanvas = document.getElementById('spectrum')
 let spectrumAnalyser = null
 
-const { wavesurfer, regions, spectrogram } = createWaveSurfer(waveformContainer, spectrogramContainer)
+const { wavesurfer, regions } = createWaveSurfer(waveformContainer)
 
-drawSpectrogramLabels(document.getElementById('spectrogram-labels'), SPECTROGRAM_MIN_FREQ, SPECTROGRAM_MAX_FREQ)
+const pianoRollCanvas = document.getElementById('piano-roll')
+const pianoRollLabelsCanvas = document.getElementById('piano-roll-labels')
+let pianoRollData = null
+let visibleFrameRange = { startFrame: 0, endFrame: 0 }
 
-spectrogram.on('error', (error) => {
-  showToast(`Could not render spectrogram: ${error.message}`)
-})
+function redrawPianoRollSlice() {
+  if (!pianoRollData) return
+  drawPianoRollSlice(
+    pianoRollCanvas,
+    pianoRollData.frames,
+    visibleFrameRange.startFrame,
+    visibleFrameRange.endFrame,
+    PIANO_ROLL_MIN_MIDI,
+    PIANO_ROLL_MAX_MIDI,
+  )
+}
 
-// SpectrogramPlugin (and the newer WindowedSpectrogramPlugin) only stay in
-// sync with the waveform on zoom - pan and playback's auto-follow-the-playhead
-// scrolling leave it frozen on whatever was rendered at the last zoom change,
-// even though wavesurfer's own 'scroll' event fires correctly. Verified this
-// is a real gap in both plugin variants (not a config issue) via direct
-// browser testing - see docs/superpowers/specs/2026-08-02-spectrogram-view-design.md's
-// "Correction" section. Driving the plugin's container position manually
-// from wavesurfer's own scroll state is the confirmed fix.
-//
-// The moving element is memoized on first lookup - the plugin builds this DOM
-// once and never rebuilds it, so re-walking it on every 'scroll' event (which
-// fires at animation-frame rate while playback is following the playhead)
-// is wasted work. Resolved structurally rather than by comparing canvas.width
-// (a devicePixelRatio-scaled bitmap width for some canvases) to clientWidth
-// (CSS pixels): per SpectrogramPlugin's source, it appends a wrapper div to
-// this container, then a canvasContainer div to the wrapper, then each content
-// canvas segment to canvasContainer - so content canvases sit three levels
-// below spectrogramContainer. (The plugin can also append its own frequency-labels
-// canvas two levels below, directly on the wrapper, but only when its `labels`
-// option is true - this app sets `labels: false` and draws its own label canvas
-// instead, so that node doesn't exist here and this depth check only ever
-// matches a content canvas, whose parent (canvasContainer) is what actually
-// needs to move.)
-let spectrogramCanvasContainer = null
+function updatePianoRollView(startTime, endTime) {
+  if (!pianoRollData) return
+  visibleFrameRange = frameRangeForTime(
+    startTime,
+    endTime,
+    pianoRollData.hopSize,
+    pianoRollData.sampleRate,
+    pianoRollData.frames.length,
+  )
+  redrawPianoRollSlice()
+}
 
-function syncSpectrogramScroll() {
-  if (!spectrogramCanvasContainer) {
-    const canvas = [...spectrogramContainer.querySelectorAll('canvas')].find(
-      (c) => c.parentElement?.parentElement?.parentElement === spectrogramContainer,
-    )
-    spectrogramCanvasContainer = canvas ? canvas.parentElement : null
-  }
-  if (spectrogramCanvasContainer) {
-    spectrogramCanvasContainer.style.transform = `translateX(${-wavesurfer.getScroll()}px)`
+function getVisibleTimeRange() {
+  const scrollLeft = wavesurfer.getScroll()
+  const viewportWidth = waveformContainer.clientWidth
+  const startTime = scrollLeft / currentPxPerSec
+  const endTime = startTime + viewportWidth / currentPxPerSec
+  return { startTime, endTime }
+}
+
+function syncPianoRollCanvasWidth() {
+  const width = Math.round(pianoRollCanvas.getBoundingClientRect().width)
+  if (width > 0 && pianoRollCanvas.width !== width) {
+    pianoRollCanvas.width = width
+    pianoRollLabelsCanvas.width = width
+    drawPianoRollLabels(pianoRollLabelsCanvas, PIANO_ROLL_MIN_MIDI, PIANO_ROLL_MAX_MIDI)
+    redrawPianoRollSlice()
   }
 }
-wavesurfer.on('scroll', syncSpectrogramScroll)
-wavesurfer.on('redraw', syncSpectrogramScroll)
+syncPianoRollCanvasWidth()
+window.addEventListener('resize', syncPianoRollCanvasWidth)
+
+wavesurfer.on('scroll', (startTime, endTime) => updatePianoRollView(startTime, endTime))
+wavesurfer.on('redraw', () => {
+  const { startTime, endTime } = getVisibleTimeRange()
+  updatePianoRollView(startTime, endTime)
+})
 
 wavesurfer.on('error', (error) => {
   showToast(`Could not load audio file: ${error.message}`)
@@ -80,6 +98,18 @@ wavesurfer.on('ready', () => {
     spectrumAnalyser = createSpectrumAnalyser(wavesurfer, spectrumCanvas, { onEqChange: scheduleEqSave })
   }
   spectrumAnalyser.setEqState(pendingEqSettings)
+
+  const audioBuffer = wavesurfer.getDecodedData()
+  if (audioBuffer) {
+    const channelData = []
+    for (let ch = 0; ch < audioBuffer.numberOfChannels; ch++) {
+      channelData.push(audioBuffer.getChannelData(ch))
+    }
+    const mono = mixToMono(channelData)
+    pianoRollData = computeSpectrogramFrames(mono, audioBuffer.sampleRate, PIANO_ROLL_MIN_FREQ, PIANO_ROLL_MAX_FREQ)
+    const { startTime, endTime } = getVisibleTimeRange()
+    updatePianoRollView(startTime, endTime)
+  }
 })
 
 async function normalizeAudio(arrayBuffer) {

@@ -56,25 +56,23 @@ h2 {
   box-sizing: border-box;
 }
 
-#spectrogram-section {
-  display: flex;
-  align-items: stretch;
+#piano-roll-section {
   margin-block: 0.5rem;
 }
 
-#spectrogram-labels {
-  flex-shrink: 0;
-  display: block;
-  align-self: flex-start;
-  margin-block: 1px;
-}
-
-#spectrogram {
+#piano-roll {
   border: 1px solid #2a2a2a;
   border-radius: 6px;
-  overflow: hidden;
-  flex: 1;
-  min-width: 0;
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+#piano-roll-labels {
+  display: block;
+  width: 100%;
+  box-sizing: border-box;
+  margin-block-start: 0.25rem;
 }
 
 .toast {
