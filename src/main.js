@@ -7,10 +7,13 @@ import { renderSelectionsList } from './selectionsList.js'
 import { mixToMono, computeSpectralFlux, pickOnsets } from './onsets.js'
 import { computePeakGain, applyGain, encodeWav } from './normalize.js'
 import { computeFileHash, loadSettings, saveSettings } from './persistence.js'
+import { saveCurrentAudio, loadCurrentAudio } from './audioStore.js'
+import { createIndexedDbStore } from './indexedDbStore.js'
+import { isRecordingSupported, formatRecordingLabel, startRecording } from './recording.js'
 import { defaultEqBands } from './eq.js'
+import { showToast } from './toast.js'
 
 const uploadInput = document.getElementById('upload')
-const uploadError = document.getElementById('upload-error')
 const uploadFilename = document.getElementById('upload-filename')
 const waveformContainer = document.getElementById('waveform')
 const playPauseBtn = document.getElementById('play-pause')
@@ -20,13 +23,11 @@ let spectrumAnalyser = null
 const { wavesurfer, regions } = createWaveSurfer(waveformContainer)
 
 wavesurfer.on('error', (error) => {
-  uploadError.textContent = `Could not load audio file: ${error.message}`
-  uploadError.hidden = false
+  showToast(`Could not load audio file: ${error.message}`)
   playPauseBtn.disabled = true
 })
 
 wavesurfer.on('ready', () => {
-  uploadError.hidden = true
   playPauseBtn.disabled = false
   if (!spectrumAnalyser) {
     spectrumAnalyser = createSpectrumAnalyser(wavesurfer, spectrumCanvas, { onEqChange: scheduleEqSave })
@@ -90,22 +91,113 @@ function saveCurrentSettings() {
   })
 }
 
-uploadInput.addEventListener('change', async () => {
-  const file = uploadInput.files[0]
-  if (!file) return
-  uploadError.hidden = true
-  uploadFilename.textContent = file.name
+const dbStore = createIndexedDbStore(undefined, undefined, (err) => {
+  console.warn('IndexedDB error:', err)
+  showToast(`Could not save or restore audio: ${err?.message ?? err}`)
+})
 
-  const arrayBuffer = await file.arrayBuffer()
-  currentFileHash = await computeFileHash(arrayBuffer)
+let loadGeneration = 0
+
+async function loadAudio(blob, label) {
+  const generation = ++loadGeneration
+
+  const arrayBuffer = await blob.arrayBuffer()
+  const hash = await computeFileHash(arrayBuffer)
+  if (generation !== loadGeneration) return
+  uploadFilename.textContent = label
+  currentFileHash = hash
   applySettings(loadSettings(localStorage, currentFileHash) ?? DEFAULT_SETTINGS)
 
   try {
     const normalizedBlob = await normalizeAudio(arrayBuffer)
+    if (generation !== loadGeneration) return
     wavesurfer.loadBlob(normalizedBlob)
   } catch {
-    wavesurfer.loadBlob(file)
+    if (generation !== loadGeneration) return
+    wavesurfer.loadBlob(blob)
   }
+}
+
+uploadInput.addEventListener('change', async () => {
+  const file = uploadInput.files[0]
+  if (!file) return
+  await loadAudio(file, file.name)
+  saveCurrentAudio(dbStore, file, file.name)
+})
+
+;(async () => {
+  const stored = await loadCurrentAudio(dbStore)
+  if (stored) {
+    try {
+      await loadAudio(stored.blob, stored.label)
+    } catch (err) {
+      showToast(err.message)
+    }
+  }
+})()
+
+const recordBtn = document.getElementById('record-btn')
+let activeRecording = null
+let recordingTimer = null
+let recordingBusy = false
+
+if (!isRecordingSupported()) {
+  recordBtn.disabled = true
+  recordBtn.title = 'Recording tab/system audio is not supported in this browser.'
+}
+
+function formatElapsed(startedAt) {
+  const elapsed = Math.floor((Date.now() - startedAt) / 1000)
+  const mm = String(Math.floor(elapsed / 60)).padStart(2, '0')
+  const ss = String(elapsed % 60).padStart(2, '0')
+  return `${mm}:${ss}`
+}
+
+async function stopActiveRecording() {
+  const recording = activeRecording
+  activeRecording = null
+  clearInterval(recordingTimer)
+  recordBtn.textContent = 'Record'
+
+  try {
+    const blob = await recording.stop()
+    const label = formatRecordingLabel()
+    await loadAudio(blob, label)
+    saveCurrentAudio(dbStore, blob, label)
+  } catch (err) {
+    showToast(err.message)
+  } finally {
+    recordingBusy = false
+  }
+}
+
+recordBtn.addEventListener('click', async () => {
+  if (recordingBusy) return
+
+  if (activeRecording) {
+    recordingBusy = true
+    await stopActiveRecording()
+    return
+  }
+
+  recordingBusy = true
+  let recording
+  try {
+    recording = await startRecording()
+  } catch (err) {
+    recordingBusy = false
+    if (err.name === 'NotAllowedError' || err.name === 'AbortError') return
+    showToast(err.message)
+    return
+  }
+  recordingBusy = false
+
+  activeRecording = recording
+  const startedAt = Date.now()
+  recordBtn.textContent = `Stop (${formatElapsed(startedAt)})`
+  recordingTimer = setInterval(() => {
+    recordBtn.textContent = `Stop (${formatElapsed(startedAt)})`
+  }, 1000)
 })
 
 const ZOOM_FACTOR = 1.2
