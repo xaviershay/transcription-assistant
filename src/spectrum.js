@@ -14,8 +14,8 @@ import {
   defaultEqBands,
 } from './eq.js'
 
-const MIN_FREQ = 27.5 // A0
-const MAX_FREQ = 4186 // C8
+export const MIN_FREQ = 27.5 // A0
+export const MAX_FREQ = 4186 // C8
 const MIN_SPAN_SEMITONES = 2
 const ZOOM_FACTOR = 1.15
 const PAN_FRACTION = 0.15

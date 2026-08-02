@@ -26,11 +26,13 @@ in `waveform.js`.
 
 This was chosen over hand-rolling STFT + canvas rendering + manual
 scroll/zoom sync: the plugin already solves memory-efficient rendering for
-long tracks (segmented canvases, `maxCanvasWidth`), automatic sync to
+long tracks (segmented canvases, `maxCanvasWidth`), ~~automatic sync to
 wavesurfer's pan/zoom (it's a real wavesurfer plugin, same mechanism as
-`RegionsPlugin`), and web-worker offloading so a long track's FFT doesn't
-freeze the page. None of that would be free to build from scratch, and all
-of it is already tested upstream.
+`RegionsPlugin`)~~ (**false — only zoom sync turned out to be automatic; pan
+and playback-follow needed manual wiring, see the Correction section below**),
+and web-worker offloading so a long track's FFT doesn't freeze the page. None
+of that would be free to build from scratch, and all of it is already tested
+upstream.
 
 ## Plugin configuration
 
@@ -44,6 +46,7 @@ SpectrogramPlugin.create({
   frequencyMax: 4186, // C8 - matches spectrum.js's MAX_FREQ
   colorMap: 'roseus', // perceptually-uniform: dark purple -> teal -> yellow
   useWebWorker: true, // avoid blocking the main thread on long tracks
+  fallbackToMainThread: false, // otherwise a worker failure silently reruns the FFT on the main thread instead of emitting 'error'
 })
 ```
 
@@ -73,7 +76,7 @@ Correction section.
 - Modify: `src/waveform.js` — `createWaveSurfer(container, spectrogramContainer)` gains a second parameter and registers `SpectrogramPlugin` alongside the existing `RegionsPlugin`.
 - Modify: `index.html` — new `<section id="spectrogram-section">` at the bottom of `<main>`, after `#selections-section`, containing the plugin's target `<div id="spectrogram">`.
 - Modify: `src/style.css` — container styling matching the existing `#waveform`/`#spectrum` panel look (bordered, rounded, `overflow: hidden`).
-- Modify: `src/main.js` — pass the new container element into `createWaveSurfer(...)`; wire the plugin's `error` event to `showToast(...)`, the same error-reporting path already used for `wavesurfer.on('error', ...)`.
+- Modify: `src/main.js` — pass the new container element into `createWaveSurfer(...)`; wire the plugin's `error` event to `showToast(...)`, the same error-reporting path already used for `wavesurfer.on('error', ...)`; also contains the manual scroll-sync wiring (`syncSpectrogramScroll`) described in the Correction section below.
 
 ## Error handling
 

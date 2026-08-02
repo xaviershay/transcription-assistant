@@ -35,12 +35,30 @@ spectrogram.on('error', (error) => {
 // browser testing - see docs/superpowers/specs/2026-08-02-spectrogram-view-design.md's
 // "Correction" section. Driving the plugin's container position manually
 // from wavesurfer's own scroll state is the confirmed fix.
+//
+// The moving element is memoized on first lookup - the plugin builds this DOM
+// once and never rebuilds it, so re-walking it on every 'scroll' event (which
+// fires at animation-frame rate while playback is following the playhead)
+// is wasted work. Resolved structurally rather than by comparing canvas.width
+// (a devicePixelRatio-scaled bitmap width for some canvases) to clientWidth
+// (CSS pixels): per SpectrogramPlugin's source, it appends a wrapper div to
+// this container, then a canvasContainer div to the wrapper, then each content
+// canvas segment to canvasContainer - so content canvases sit three levels
+// below spectrogramContainer. The separate frequency-labels canvas is appended
+// directly to the wrapper instead (two levels below), so this depth check
+// picks out only a content canvas, whose parent (canvasContainer) is what
+// actually needs to move.
+let spectrogramCanvasContainer = null
+
 function syncSpectrogramScroll() {
-  const wideCanvas = [...spectrogramContainer.querySelectorAll('canvas')].find(
-    (c) => c.width > spectrogramContainer.clientWidth,
-  )
-  if (wideCanvas && wideCanvas.parentElement) {
-    wideCanvas.parentElement.style.transform = `translateX(${-wavesurfer.getScroll()}px)`
+  if (!spectrogramCanvasContainer) {
+    const canvas = [...spectrogramContainer.querySelectorAll('canvas')].find(
+      (c) => c.parentElement?.parentElement?.parentElement === spectrogramContainer,
+    )
+    spectrogramCanvasContainer = canvas ? canvas.parentElement : null
+  }
+  if (spectrogramCanvasContainer) {
+    spectrogramCanvasContainer.style.transform = `translateX(${-wavesurfer.getScroll()}px)`
   }
 }
 wavesurfer.on('scroll', syncSpectrogramScroll)
