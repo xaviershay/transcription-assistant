@@ -56,10 +56,19 @@ h2 {
   box-sizing: border-box;
 }
 
-.error {
+.toast {
+  position: fixed;
+  bottom: 1rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1a1a1a;
   color: #ff6b6b;
-  width: 100%;
-  margin: 0;
+  border: 1px solid #3a3a3a;
+  border-radius: 6px;
+  padding: 0.6rem 1rem;
+  max-width: 90vw;
+  cursor: pointer;
+  z-index: 100;
 }
 
 button {

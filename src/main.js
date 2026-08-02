@@ -11,9 +11,9 @@ import { saveCurrentAudio, loadCurrentAudio } from './audioStore.js'
 import { createIndexedDbStore } from './indexedDbStore.js'
 import { isRecordingSupported, formatRecordingLabel, startRecording } from './recording.js'
 import { defaultEqBands } from './eq.js'
+import { showToast } from './toast.js'
 
 const uploadInput = document.getElementById('upload')
-const uploadError = document.getElementById('upload-error')
 const uploadFilename = document.getElementById('upload-filename')
 const waveformContainer = document.getElementById('waveform')
 const playPauseBtn = document.getElementById('play-pause')
@@ -23,13 +23,11 @@ let spectrumAnalyser = null
 const { wavesurfer, regions } = createWaveSurfer(waveformContainer)
 
 wavesurfer.on('error', (error) => {
-  uploadError.textContent = `Could not load audio file: ${error.message}`
-  uploadError.hidden = false
+  showToast(`Could not load audio file: ${error.message}`)
   playPauseBtn.disabled = true
 })
 
 wavesurfer.on('ready', () => {
-  uploadError.hidden = true
   playPauseBtn.disabled = false
   if (!spectrumAnalyser) {
     spectrumAnalyser = createSpectrumAnalyser(wavesurfer, spectrumCanvas, { onEqChange: scheduleEqSave })
@@ -103,7 +101,6 @@ async function loadAudio(blob, label) {
   const arrayBuffer = await blob.arrayBuffer()
   const hash = await computeFileHash(arrayBuffer)
   if (generation !== loadGeneration) return
-  uploadError.hidden = true
   uploadFilename.textContent = label
   currentFileHash = hash
   applySettings(loadSettings(localStorage, currentFileHash) ?? DEFAULT_SETTINGS)
@@ -161,8 +158,7 @@ async function stopActiveRecording() {
     await loadAudio(blob, label)
     saveCurrentAudio(dbStore, blob, label)
   } catch (err) {
-    uploadError.textContent = err.message
-    uploadError.hidden = false
+    showToast(err.message)
   } finally {
     recordingBusy = false
   }
@@ -184,8 +180,7 @@ recordBtn.addEventListener('click', async () => {
   } catch (err) {
     recordingBusy = false
     if (err.name === 'NotAllowedError' || err.name === 'AbortError') return
-    uploadError.textContent = err.message
-    uploadError.hidden = false
+    showToast(err.message)
     return
   }
   recordingBusy = false
