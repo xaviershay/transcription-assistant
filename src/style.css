@@ -67,6 +67,7 @@ h2 {
   border-radius: 6px;
   padding: 0.6rem 1rem;
   max-width: 90vw;
+  overflow-wrap: anywhere;
   cursor: pointer;
   z-index: 100;
 }

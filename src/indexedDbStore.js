@@ -27,7 +27,11 @@ export function createIndexedDbStore(dbName = 'ear-transcriber', storeName = 'au
           request.onerror = () => reject(request.error)
         })
       } catch (err) {
-        onError?.(err)
+        try {
+          onError?.(err)
+        } catch {
+          // notification must never break the store's best-effort guarantee
+        }
         return undefined
       }
     },
@@ -42,7 +46,11 @@ export function createIndexedDbStore(dbName = 'ear-transcriber', storeName = 'au
           tx.onerror = () => reject(tx.error)
         })
       } catch (err) {
-        onError?.(err)
+        try {
+          onError?.(err)
+        } catch {
+          // notification must never break the store's best-effort guarantee
+        }
         // best-effort; save failures must never break the app
       }
     },

@@ -91,7 +91,10 @@ function saveCurrentSettings() {
   })
 }
 
-const dbStore = createIndexedDbStore(undefined, undefined, (err) => showToast(err.message))
+const dbStore = createIndexedDbStore(undefined, undefined, (err) => {
+  console.warn('IndexedDB error:', err)
+  showToast(`Could not save or restore audio: ${err?.message ?? err}`)
+})
 
 let loadGeneration = 0
 
