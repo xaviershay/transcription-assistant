@@ -18,3 +18,8 @@ export function noteNameFromMidi(midi) {
 export function frequencyToNoteName(freq) {
   return noteNameFromMidi(midiFromFrequency(freq))
 }
+
+export function labelStep(spanSemitones, availablePixels, desiredLabelSpacingPx = 50) {
+  const desiredLabels = availablePixels / desiredLabelSpacingPx
+  return Math.max(1, Math.round(spanSemitones / desiredLabels))
+}

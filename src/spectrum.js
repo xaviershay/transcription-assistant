@@ -1,4 +1,4 @@
-import { frequencyToNoteName, midiFromFrequency, noteNameFromMidi } from './notes.js'
+import { frequencyToNoteName, midiFromFrequency, noteNameFromMidi, labelStep } from './notes.js'
 import { computeNoteBuckets, computePeakMidis } from './spectrum-bars.js'
 import {
   gainToY,
@@ -220,12 +220,6 @@ export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) 
     { passive: false },
   )
 
-  function labelStep() {
-    const spanSemitones = midiFromFrequency(viewMaxFreq) - midiFromFrequency(viewMinFreq)
-    const desiredLabels = canvas.width / 50
-    return Math.max(1, Math.round(spanSemitones / desiredLabels))
-  }
-
   function render() {
     analyser.getByteFrequencyData(freqData)
 
@@ -253,7 +247,7 @@ export function createSpectrumAnalyser(wavesurfer, canvas, { onEqChange } = {}) 
     ctx.fillStyle = LABEL_COLOR
     ctx.font = '13px sans-serif'
     ctx.textAlign = 'center'
-    const step = labelStep()
+    const step = labelStep(midiFromFrequency(viewMaxFreq) - midiFromFrequency(viewMinFreq), canvas.width)
     const minMidi = Math.ceil(midiFromFrequency(viewMinFreq))
     const maxMidi = Math.floor(midiFromFrequency(viewMaxFreq))
     for (let midi = minMidi; midi <= maxMidi; midi += step) {
