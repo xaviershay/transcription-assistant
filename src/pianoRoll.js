@@ -14,8 +14,8 @@ export const PIANO_ROLL_MAX_FREQ = frequencyFromMidi(PIANO_ROLL_MAX_MIDI)
 // rangeDB is how many dB below that white point fall all the way to black -
 // smaller means higher contrast (a narrower band of loudness shown at all),
 // larger means a more gradual falloff.
-export const DEFAULT_GAIN_DB = 20
-export const DEFAULT_RANGE_DB = 80
+export const DEFAULT_GAIN_DB = 0
+export const DEFAULT_RANGE_DB = 20
 
 export function magnitudeToByte(magnitude, peakMagnitude, gainDB, rangeDB) {
   if (peakMagnitude <= 0 || magnitude <= 0) return 0

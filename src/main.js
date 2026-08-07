@@ -217,7 +217,7 @@ const DEFAULT_SETTINGS = {
   bpm: 120,
   subdivisions: 4,
   offset: 0,
-  volume: 1,
+  volume: 0.5,
   eqBands: defaultEqBands(),
   gainDB: DEFAULT_GAIN_DB,
   rangeDB: DEFAULT_RANGE_DB,
@@ -341,6 +341,9 @@ async function stopActiveRecording() {
   try {
     const blob = await recording.stop()
     const label = formatRecordingLabel()
+    for (const region of regions.getRegions().filter((r) => !isPreviewRegion(r))) {
+      region.remove()
+    }
     await loadAudio(blob, label)
     saveCurrentAudio(dbStore, blob, label)
   } catch (err) {
